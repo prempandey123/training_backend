@@ -6,6 +6,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { SkillsModule } from './skills/skills.module';
 import { DesignationModule } from './designations/designation.module';
+import { DepartmentModule } from './departments/department.module';
 
 @Module({
   imports: [
@@ -22,7 +23,8 @@ import { DesignationModule } from './designations/designation.module';
     UsersModule,
     AuthModule,
     SkillsModule,
-    DesignationModule
+    DesignationModule,
+    DepartmentModule
 
   ],
   controllers: [AppController],

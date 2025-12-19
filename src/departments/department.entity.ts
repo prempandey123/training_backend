@@ -6,16 +6,13 @@ import {
   DeleteDateColumn,
 } from 'typeorm';
 
-@Entity('designations')
-export class Designation {
+@Entity('departments')
+export class Department {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column({ unique: true })
-  designationName: string;
-
-  @Column('text', { array: true })
-  skills: string[];
+  name: string;
 
   @Column({ default: true })
   isActive: boolean;
