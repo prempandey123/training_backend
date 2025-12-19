@@ -1,11 +1,6 @@
-import { IsArray, IsOptional, IsString } from 'class-validator';
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateDesignationDto } from './create-designation.dto';
 
-export class UpdateDesignationDto {
-  @IsString()
-  @IsOptional()
-  designationName?: string;
-
-  @IsArray()
-  @IsOptional()
-  skills?: string[];
-}
+export class UpdateDesignationDto extends PartialType(
+  CreateDesignationDto,
+) {}

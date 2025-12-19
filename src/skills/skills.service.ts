@@ -1,27 +1,51 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Skill } from './skill.entity';
+import { CreateSkillDto } from './dto/create-skill.dto';
+import { UpdateSkillDto } from './dto/update-skill.dto';
 
 @Injectable()
-export class SkillsService {
+export class SkillService {
   constructor(
     @InjectRepository(Skill)
     private readonly skillRepo: Repository<Skill>,
   ) {}
 
-  create(data: Partial<Skill>) {
-    const skill = this.skillRepo.create(data);
+  // CREATE
+  async create(dto: CreateSkillDto) {
+    const exists = await this.skillRepo.findOne({
+      where: { name: dto.name },
+    });
+
+    if (exists) {
+      throw new ConflictException('Skill already exists');
+    }
+
+    const skill = this.skillRepo.create({
+      name: dto.name,
+    });
+
     return this.skillRepo.save(skill);
   }
 
-  findAll() {
-    return this.skillRepo.find();
+  // LIST (only active)
+  async findAll() {
+    return this.skillRepo.find({
+      where: { isActive: true },
+      order: { name: 'ASC' },
+    });
   }
 
-  // ✅ THIS WAS MISSING
+  // GET BY ID
   async findOne(id: number) {
-    const skill = await this.skillRepo.findOne({ where: { id } });
+    const skill = await this.skillRepo.findOne({
+      where: { id },
+    });
 
     if (!skill) {
       throw new NotFoundException('Skill not found');
@@ -30,14 +54,23 @@ export class SkillsService {
     return skill;
   }
 
-  async update(id: number, data: Partial<Skill>) {
+  // UPDATE
+  async update(id: number, dto: UpdateSkillDto) {
     const skill = await this.findOne(id);
-    Object.assign(skill, data);
+
+    if (dto.name) {
+      skill.name = dto.name;
+    }
+
     return this.skillRepo.save(skill);
   }
 
+  // SOFT DELETE
   async remove(id: number) {
     const skill = await this.findOne(id);
-    return this.skillRepo.remove(skill);
+    skill.isActive = false;
+
+    await this.skillRepo.save(skill);
+    return this.skillRepo.softDelete(id);
   }
 }

@@ -16,25 +16,25 @@ import { UpdateUserDto } from './dto/update-user.dto';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // CREATE
+  // 🔹 CREATE USER (EMPLOYEE)
   @Post()
-  create(@Body() body: CreateUserDto) {
-    return this.usersService.create(body);
+  create(@Body() dto: CreateUserDto) {
+    return this.usersService.create(dto);
   }
 
-  // LIST
+  // 🔹 LIST ALL USERS
   @Get()
   findAll() {
     return this.usersService.findAll();
   }
 
-  // 🔥 GET BY ID (FIXES 404)
+  // 🔹 GET USER BY ID
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.findOne(id);
   }
 
-  // 🔥 UPDATE USER
+  // 🔹 UPDATE USER
   @Put(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -43,14 +43,9 @@ export class UsersController {
     return this.usersService.update(id, dto);
   }
 
-  // 🔥 DELETE USER
+  // 🔹 DELETE USER (HARD DELETE for now)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.remove(id);
   }
-  @Get('stats/count')
-getUserStats() {
-  return this.usersService.getUserStats();
-}
-
 }

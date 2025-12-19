@@ -3,7 +3,11 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  ManyToOne,
 } from 'typeorm';
+import { UserRole } from './enums/user-role.enum';
+import { Department } from '../departments/department.entity';
+import { Designation } from '../designations/designation.entity';
 
 @Entity('users')
 export class User {
@@ -22,21 +26,28 @@ export class User {
   @Column()
   mobile: string;
 
-  @Column()
-  department: string;
+  // 🔹 USER → DEPARTMENT (MANY TO ONE)
+  @ManyToOne(() => Department, { eager: true })
+  department: Department;
+
+  // 🔹 USER → DESIGNATION (MANY TO ONE)
+  @ManyToOne(() => Designation, (d) => d.users, {
+    eager: true,
+  })
+  designation: Designation;
 
   @Column({
     type: 'enum',
-    enum: ['ADMIN', 'EMPLOYEE'],
-    default: 'EMPLOYEE',
+    enum: UserRole,
+    default: UserRole.EMPLOYEE,
   })
-  role: 'ADMIN' | 'EMPLOYEE';
+  role: UserRole;
+
+  @Column({ type: 'date' })
+  dateOfJoining: Date;
 
   @Column({ default: false })
   biometricLinked: boolean;
-
-  @Column({ default: 0 })
-  score: number;
 
   @Column({ default: true })
   isActive: boolean;

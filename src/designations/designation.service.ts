@@ -1,7 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Designation } from './designation.entity';
+import { Department } from '../departments/department.entity';
 import { CreateDesignationDto } from './dto/create-designation.dto';
 import { UpdateDesignationDto } from './dto/update-designation.dto';
 
@@ -9,23 +14,48 @@ import { UpdateDesignationDto } from './dto/update-designation.dto';
 export class DesignationService {
   constructor(
     @InjectRepository(Designation)
-    private designationRepo: Repository<Designation>,
+    private readonly designationRepo: Repository<Designation>,
+
+    @InjectRepository(Department)
+    private readonly departmentRepo: Repository<Department>,
   ) {}
 
+  // CREATE
   async create(dto: CreateDesignationDto) {
-    return this.designationRepo.save(dto);
+    const exists = await this.designationRepo.findOne({
+      where: { designationName: dto.designationName },
+    });
+
+    if (exists) {
+      throw new ConflictException('Designation already exists');
+    }
+
+    const departments = await this.departmentRepo.findByIds(
+      dto.departmentIds,
+    );
+
+    const designation = this.designationRepo.create({
+      designationName: dto.designationName,
+      departments,
+    });
+
+    return this.designationRepo.save(designation);
   }
 
-  // soft-deleted records automatically excluded
+  // LIST
   async findAll() {
     return this.designationRepo.find({
-      order: { createdAt: 'DESC' },
+      where: { isActive: true },
+      relations: ['departments'],
+      order: { designationName: 'ASC' },
     });
   }
 
+  // GET BY ID
   async findOne(id: number) {
     const designation = await this.designationRepo.findOne({
       where: { id },
+      relations: ['departments'],
     });
 
     if (!designation) {
@@ -35,30 +65,28 @@ export class DesignationService {
     return designation;
   }
 
-  // ✅ FIXED UPDATE (THIS WAS THE ISSUE)
+  // UPDATE
   async update(id: number, dto: UpdateDesignationDto) {
-  const designation = await this.findOne(id);
-
-  if (dto.designationName !== undefined) {
-    designation.designationName = dto.designationName;
-  }
-
-  if (dto.skills !== undefined) {
-    designation.skills = dto.skills;
-  }
-
-  return this.designationRepo.save(designation);
-}
-
-
-  async toggleStatus(id: number) {
     const designation = await this.findOne(id);
-    designation.isActive = !designation.isActive;
+
+    if (dto.departmentIds) {
+      designation.departments =
+        await this.departmentRepo.findByIds(dto.departmentIds);
+    }
+
+    if (dto.designationName) {
+      designation.designationName = dto.designationName;
+    }
+
     return this.designationRepo.save(designation);
   }
 
-  async softDelete(id: number) {
-    await this.findOne(id);
+  // SOFT DELETE
+  async remove(id: number) {
+    const designation = await this.findOne(id);
+    designation.isActive = false;
+
+    await this.designationRepo.save(designation);
     return this.designationRepo.softDelete(id);
   }
 }

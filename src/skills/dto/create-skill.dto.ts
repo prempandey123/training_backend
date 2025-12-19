@@ -1,13 +1,7 @@
-import { IsNotEmpty, IsOptional, IsBoolean } from 'class-validator';
+import { IsNotEmpty, IsString } from 'class-validator';
 
 export class CreateSkillDto {
   @IsNotEmpty()
+  @IsString()
   name: string;
-
-  @IsOptional()
-  department?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  isCommon?: boolean;
 }

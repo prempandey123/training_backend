@@ -1,13 +1,13 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { SkillsService } from './skills.service';
-import { SkillsController } from './skills.controller';
 import { Skill } from './skill.entity';
+import { SkillService } from './skills.service';
+import { SkillController } from './skills.controller';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Skill])],
-  controllers: [SkillsController],
-  providers: [SkillsService],
-  exports: [SkillsService],
+  controllers: [SkillController],
+  providers: [SkillService],
+  exports: [SkillService], // 🔥 used by DesignationSkill module
 })
-export class SkillsModule {}
+export class SkillModule {}

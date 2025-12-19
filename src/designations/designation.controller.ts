@@ -1,12 +1,12 @@
 import {
-  Body,
   Controller,
-  Get,
-  Param,
   Post,
+  Get,
   Put,
-  Patch,
   Delete,
+  Body,
+  Param,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { DesignationService } from './designation.service';
 import { CreateDesignationDto } from './dto/create-designation.dto';
@@ -27,26 +27,20 @@ export class DesignationController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: number) {
-    return this.service.findOne(+id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.service.findOne(id);
   }
 
   @Put(':id')
-update(
-  @Param('id') id: number,
-  @Body() dto: UpdateDesignationDto,
-) {
-  return this.service.update(+id, dto);
-}
-
-
-  @Patch(':id/toggle-status')
-  toggleStatus(@Param('id') id: number) {
-    return this.service.toggleStatus(+id);
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateDesignationDto,
+  ) {
+    return this.service.update(id, dto);
   }
 
   @Delete(':id')
-  softDelete(@Param('id') id: number) {
-    return this.service.softDelete(+id);
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.service.remove(id);
   }
 }

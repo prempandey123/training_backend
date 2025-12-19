@@ -20,6 +20,7 @@ export class Department {
   @CreateDateColumn()
   createdAt: Date;
 
+  // 🔥 soft delete support
   @DeleteDateColumn()
   deletedAt: Date;
 }

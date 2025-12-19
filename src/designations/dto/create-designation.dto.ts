@@ -1,10 +1,19 @@
-import { IsArray, IsNotEmpty, IsString } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsArray,
+  ArrayNotEmpty,
+  IsNumber,
+} from 'class-validator';
 
 export class CreateDesignationDto {
-  @IsString()
   @IsNotEmpty()
+  @IsString()
   designationName: string;
 
+  // 🔹 Departments where this designation is applicable
   @IsArray()
-  skills: string[];
+  @ArrayNotEmpty()
+  @IsNumber({}, { each: true })
+  departmentIds: number[];
 }

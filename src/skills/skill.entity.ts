@@ -1,19 +1,31 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  DeleteDateColumn,
+  ManyToMany,
+} from 'typeorm';
+import { Designation } from '../designations/designation.entity';
 
 @Entity('skills')
 export class Skill {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ unique: true })
   name: string;
-
-  @Column({ nullable: true })
-  department: string;
-
-  @Column({ default: false })
-  isCommon: boolean;
 
   @Column({ default: true })
   isActive: boolean;
+
+  // 🔹 Skill ↔ Designation (MANY TO MANY)
+  @ManyToMany(() => Designation, (designation) => designation.skills)
+  designations: Designation[];
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @DeleteDateColumn()
+  deletedAt: Date;
 }

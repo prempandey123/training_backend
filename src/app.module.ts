@@ -4,9 +4,12 @@ import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
-import { SkillsModule } from './skills/skills.module';
+import { SkillModule } from './skills/skills.module';
 import { DesignationModule } from './designations/designation.module';
 import { DepartmentModule } from './departments/department.module';
+import { DesignationSkillModule } from './designation-skills/designation-skill.module';
+import { UserSkillLevelModule } from './user-skill-levels/user-skill-level.module';
+import { SkillMatrixModule } from './skill-matrix/skill-matrix.module';
 
 @Module({
   imports: [
@@ -16,15 +19,18 @@ import { DepartmentModule } from './departments/department.module';
   port: 5432,
   username: 'postgres',
   password: 'Premp7@196',
-  database: 'train',
+  database: 'New',
   autoLoadEntities: true,
   synchronize: true, // dev only
 }),
     UsersModule,
     AuthModule,
-    SkillsModule,
+    SkillModule,
     DesignationModule,
-    DepartmentModule
+    DesignationSkillModule,
+    DepartmentModule,
+    UserSkillLevelModule,
+    SkillMatrixModule
 
   ],
   controllers: [AppController],
