@@ -10,6 +10,7 @@ import { DepartmentModule } from './departments/department.module';
 import { DesignationSkillModule } from './designation-skills/designation-skill.module';
 import { UserSkillLevelModule } from './user-skill-levels/user-skill-level.module';
 import { SkillMatrixModule } from './skill-matrix/skill-matrix.module';
+import { SkillGapModule } from './skill-gap/skill-gap.module';
 
 @Module({
   imports: [
@@ -30,7 +31,8 @@ import { SkillMatrixModule } from './skill-matrix/skill-matrix.module';
     DesignationSkillModule,
     DepartmentModule,
     UserSkillLevelModule,
-    SkillMatrixModule
+    SkillMatrixModule,
+    SkillGapModule
 
   ],
   controllers: [AppController],
