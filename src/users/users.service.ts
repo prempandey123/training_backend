@@ -41,4 +41,21 @@ export class UsersService {
   remove(id: number) {
     return this.userRepo.delete(id);
   }
+  async getUserStats() {
+  const total = await this.userRepo.count();
+  const active = await this.userRepo.count({
+    where: { isActive: true },
+  });
+  const inactive = await this.userRepo.count({
+    where: { isActive: false },
+  });
+
+  return {
+    total,
+    active,
+    inactive,
+  };
 }
+
+}
+
