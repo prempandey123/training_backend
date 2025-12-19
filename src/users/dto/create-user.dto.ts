@@ -1,5 +1,11 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsEnum } from 'class-validator';
-import { UserRole } from '../enums/user-role.enum';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsBoolean,
+  IsIn,
+  IsNumber,
+} from 'class-validator';
 
 export class CreateUserDto {
   @IsNotEmpty()
@@ -9,18 +15,26 @@ export class CreateUserDto {
   email: string;
 
   @IsNotEmpty()
-  employeeCode: string;
+  employeeId: string;
+
+  @IsNotEmpty()
+  mobile: string;
 
   @IsNotEmpty()
   department: string;
 
-  @IsNotEmpty()
-  designation: string;
-
-  @IsNotEmpty()
-  password: string;
+  @IsIn(['ADMIN', 'EMPLOYEE'])
+  role: 'ADMIN' | 'EMPLOYEE';
 
   @IsOptional()
-  @IsEnum(UserRole)
-  role?: UserRole;
+  @IsBoolean()
+  biometricLinked?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  score?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

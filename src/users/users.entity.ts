@@ -1,10 +1,12 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
-import { Exclude } from 'class-transformer';
-import { UserRole } from './enums/user-role.enum';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+} from 'typeorm';
 
-@Entity({ name: 'users' })
+@Entity('users')
 export class User {
-
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -14,26 +16,31 @@ export class User {
   @Column({ unique: true })
   email: string;
 
+  @Column({ unique: true })
+  employeeId: string;
+
   @Column()
-  employeeCode: string;
+  mobile: string;
 
   @Column()
   department: string;
 
-  @Column()
-  designation: string;
-
-  @Exclude()
-  @Column()
-  password: string;
-
   @Column({
     type: 'enum',
-    enum: UserRole,
-    default: UserRole.EMPLOYEE,
+    enum: ['ADMIN', 'EMPLOYEE'],
+    default: 'EMPLOYEE',
   })
-  role: UserRole;
+  role: 'ADMIN' | 'EMPLOYEE';
+
+  @Column({ default: false })
+  biometricLinked: boolean;
+
+  @Column({ default: 0 })
+  score: number;
 
   @Column({ default: true })
   isActive: boolean;
+
+  @CreateDateColumn()
+  createdAt: Date;
 }
