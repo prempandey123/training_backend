@@ -9,8 +9,8 @@ import {
   JoinTable,
 } from 'typeorm';
 import { Department } from '../departments/department.entity';
-import { Skill } from '../skills/skill.entity';
 import { User } from '../users/users.entity';
+import { DesignationSkill } from '../designation-skills/designation-skill.entity';
 
 @Entity('designations')
 export class Designation {
@@ -23,7 +23,7 @@ export class Designation {
   @Column({ default: true })
   isActive: boolean;
 
-  // 🔹 Designation ↔ Department (MANY TO MANY)
+  // 🔹 Designation ↔ Department
   @ManyToMany(() => Department)
   @JoinTable({
     name: 'department_designations',
@@ -32,17 +32,14 @@ export class Designation {
   })
   departments: Department[];
 
-  // 🔹 Designation ↔ Skill (MANY TO MANY)
-  // (Required level mapping will be in designation_skills table later)
-  @ManyToMany(() => Skill)
-  @JoinTable({
-    name: 'designation_skills',
-    joinColumn: { name: 'designation_id' },
-    inverseJoinColumn: { name: 'skill_id' },
-  })
-  skills: Skill[];
+  // 🔹 Designation → DesignationSkill
+  @OneToMany(
+    () => DesignationSkill,
+    (ds) => ds.designation,
+  )
+  designationSkills: DesignationSkill[];
 
-  // 🔹 Designation → Users (ONE TO MANY)
+  // 🔹 Designation → Users
   @OneToMany(() => User, (user) => user.designation)
   users: User[];
 

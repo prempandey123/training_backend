@@ -4,9 +4,9 @@ import {
   Column,
   CreateDateColumn,
   DeleteDateColumn,
-  ManyToMany,
+  OneToMany,
 } from 'typeorm';
-import { Designation } from '../designations/designation.entity';
+import { DesignationSkill } from '../designation-skills/designation-skill.entity';
 
 @Entity('skills')
 export class Skill {
@@ -19,9 +19,12 @@ export class Skill {
   @Column({ default: true })
   isActive: boolean;
 
-  // 🔹 Skill ↔ Designation (MANY TO MANY)
-  @ManyToMany(() => Designation, (designation) => designation.skills)
-  designations: Designation[];
+  // 🔹 Skill → DesignationSkill
+  @OneToMany(
+    () => DesignationSkill,
+    (ds) => ds.skill,
+  )
+  designationSkills: DesignationSkill[];
 
   @CreateDateColumn()
   createdAt: Date;
