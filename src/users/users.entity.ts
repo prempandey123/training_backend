@@ -26,6 +26,10 @@ export class User {
   @Column()
   mobile: string;
 
+  // 🔐 hashed password (not selected by default)
+  @Column({ nullable: true, select: false })
+  password?: string;
+
   // 🔹 USER → DEPARTMENT (MANY TO ONE)
   @ManyToOne(() => Department, { eager: true })
   department: Department;

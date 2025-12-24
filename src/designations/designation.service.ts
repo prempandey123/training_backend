@@ -44,26 +44,26 @@ export class DesignationService {
 
   // LIST
   async findAll() {
-    return this.designationRepo.find({
-      where: { isActive: true },
-      relations: ['departments'],
-      order: { designationName: 'ASC' },
-    });
-  }
+  return this.designationRepo.find({
+    where: { isActive: true },
+    relations: ['departments', 'designationSkills', 'designationSkills.skill'],
+    order: { designationName: 'ASC' },
+  });
+}
 
   // GET BY ID
   async findOne(id: number) {
-    const designation = await this.designationRepo.findOne({
-      where: { id },
-      relations: ['departments'],
-    });
+  const designation = await this.designationRepo.findOne({
+    where: { id },
+    relations: ['departments', 'designationSkills', 'designationSkills.skill'],
+  });
 
-    if (!designation) {
-      throw new NotFoundException('Designation not found');
-    }
-
-    return designation;
+  if (!designation) {
+    throw new NotFoundException('Designation not found');
   }
+
+  return designation;
+}
 
   // UPDATE
   async update(id: number, dto: UpdateDesignationDto) {

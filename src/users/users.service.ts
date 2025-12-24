@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as bcrypt from 'bcryptjs';
 import { User } from './users.entity';
 import { Department } from '../departments/department.entity';
 import { Designation } from '../designations/designation.entity';
@@ -22,9 +23,14 @@ export class UsersService {
 
   // ✅ REQUIRED FOR AUTH
   async findByEmail(email: string) {
-    return this.userRepo.findOne({
-      where: { email },
-    });
+    // password column is select:false, so we explicitly select it for auth
+    return this.userRepo
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .leftJoinAndSelect('user.department', 'department')
+      .leftJoinAndSelect('user.designation', 'designation')
+      .where('user.email = :email', { email })
+      .getOne();
   }
 
   // CREATE USER
@@ -43,16 +49,22 @@ export class UsersService {
       throw new NotFoundException('Designation not found');
     }
 
+
+    // dto.password is required on create (DTO validates it)
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
     const user = this.userRepo.create({
       name: dto.name,
       email: dto.email,
       employeeId: dto.employeeId,
       mobile: dto.mobile,
+      password: hashedPassword,
       role: dto.role,
       department,
       designation,
       dateOfJoining: new Date(dto.dateOfJoining),
-      isActive: true,
+      isActive: dto.isActive ?? true,
+      biometricLinked: dto.biometricLinked ?? false,
     });
 
     return this.userRepo.save(user);
@@ -107,6 +119,11 @@ export class UsersService {
     if (dto.name) user.name = dto.name;
     if (dto.mobile) user.mobile = dto.mobile;
     if (dto.isActive !== undefined) user.isActive = dto.isActive;
+
+    // 🔐 if password is provided in edit, hash it and update
+    if (dto.password) {
+      user.password = await bcrypt.hash(dto.password, 10);
+    }
 
     return this.userRepo.save(user);
   }

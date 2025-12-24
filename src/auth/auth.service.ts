@@ -10,8 +10,14 @@ export class AuthService {
   ) {}
 
   async login(email: string, password: string) {
-    // TEMP HARD CODE LOGIN
-    if (email === 'admin@gmail.com' && password === 'admin') {
+    // TEMP HARD CODE LOGIN (for training/demo)
+    // Frontend placeholder credentials: admin@herosteels.com / admin123
+    // Local quick credentials: admin@gmail.com / admin
+    const isHardcodedAdmin =
+      (email === 'admin@gmail.com' && password === 'admin') ||
+      (email === 'admin@herosteels.com' && password === 'admin123');
+
+    if (isHardcodedAdmin) {
       return {
         access_token: this.jwtService.sign({
           email,
