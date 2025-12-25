@@ -17,6 +17,16 @@ export class TrainingController {
     return this.trainingService.findAll();
   }
 
+  /**
+   * Calendar-friendly projection of trainings.
+   * Keeps existing /trainings response intact, while providing a
+   * lightweight shape that FullCalendar can consume directly.
+   */
+  @Get('calendar')
+  getCalendarEvents() {
+    return this.trainingService.getCalendarEvents();
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.trainingService.findOne(id);

@@ -5,6 +5,20 @@ import { CreateTrainingDto } from './dto/create-training.dto';
 import { UpdateTrainingDto } from './dto/update-training.dto';
 import { Training, TrainingAttendee } from './training.entity';
 
+type CalendarEvent = {
+  id: number;
+  title: string;
+  start: string;
+  end?: string;
+  extendedProps: {
+    department: string;
+    trainer: string;
+    status: string;
+    time: string;
+    skills: string[];
+  };
+};
+
 @Injectable()
 export class TrainingService {
   constructor(
@@ -48,6 +62,15 @@ export class TrainingService {
     return list.map((t) => this.toUi(t));
   }
 
+  /**
+   * Returns a calendar-consumable list so the frontend calendar doesn't need
+   * to guess how to convert date + "10:00 - 12:00" into start/end.
+   */
+  async getCalendarEvents(): Promise<CalendarEvent[]> {
+    const list = await this.trainingRepo.find({ order: { id: 'DESC' } });
+    return list.map((t) => this.toCalendarEvent(t));
+  }
+
   async findOne(id: number) {
     const t = await this.trainingRepo.findOne({ where: { id } });
     if (!t) throw new NotFoundException('Training not found');
@@ -84,9 +107,13 @@ export class TrainingService {
     const dept =
       Array.isArray(t.departments) && t.departments.length ? t.departments[0] : '';
 
+    const cal = this.toCalendarEvent(t);
+
     return {
       id: t.id,
       topic: t.topic,
+      // Backward compatibility for components that still read `title`
+      title: t.topic,
       date: t.date,
       time: t.time,
       department: dept, // UI shows single department column
@@ -97,8 +124,72 @@ export class TrainingService {
       assignedEmployees: t.assignedEmployees ?? [],
       attendees: t.attendees ?? [],
       postponeReason: t.postponeReason ?? null,
+      // Calendar-friendly projection (non-breaking additive fields)
+      start: cal.start,
+      end: cal.end,
+      calendarEvent: cal,
       createdAt: t.createdAt,
       updatedAt: t.updatedAt,
     };
+  }
+
+  private toCalendarEvent(t: Training): CalendarEvent {
+    const dept =
+      Array.isArray(t.departments) && t.departments.length ? t.departments[0] : '';
+
+    const { start, end } = this.combineDateAndTimeRange(t.date, t.time);
+
+    return {
+      id: t.id,
+      title: t.topic,
+      start,
+      ...(end ? { end } : {}),
+      extendedProps: {
+        department: dept,
+        trainer: t.trainer ?? '',
+        status: t.status,
+        time: t.time,
+        skills: t.skills ?? [],
+      },
+    };
+  }
+
+  /**
+   * Combines a YYYY-MM-DD date with a "HH:mm - HH:mm" string into ISO datetimes.
+   * If parsing fails, returns date-only start so month view still works.
+   */
+  private combineDateAndTimeRange(date: string, timeRange: string): { start: string; end?: string } {
+    const safeDate = (date || '').trim();
+    const safeTime = (timeRange || '').trim();
+
+    if (!safeDate) return { start: '' };
+
+    const parts = safeTime.split('-').map((p) => p.trim()).filter(Boolean);
+    const startTime = parts[0];
+    const endTime = parts[1];
+
+    const startIso = this.toIsoLocalDateTime(safeDate, startTime);
+    const endIso = endTime ? this.toIsoLocalDateTime(safeDate, endTime) : undefined;
+
+    // If we couldn't parse time, fall back to date-only so calendar month still renders.
+    if (!startIso) return { start: safeDate };
+
+    return { start: startIso, ...(endIso ? { end: endIso } : {}) };
+  }
+
+  /**
+   * Produces an ISO-like local datetime string (YYYY-MM-DDTHH:mm:00).
+   * We intentionally avoid timezone conversion (FullCalendar can treat it as local).
+   */
+  private toIsoLocalDateTime(date: string, hhmm?: string): string | null {
+    if (!date) return null;
+    if (!hhmm) return null;
+
+    const m = hhmm.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+    if (!m) return null;
+
+    const h = m[1].padStart(2, '0');
+    const min = m[2].padStart(2, '0');
+    return `${date}T${h}:${min}:00`;
   }
 }
