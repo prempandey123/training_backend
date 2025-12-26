@@ -3,6 +3,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { SkillMatrixService } from './skill-matrix.service';
@@ -27,6 +28,9 @@ export class SkillMatrixController {
   @Get('me')
   getMySkillMatrix(@CurrentUser() user: any) {
     const userId = Number(user?.sub ?? user?.id);
+    if (!Number.isInteger(userId)) {
+      throw new UnauthorizedException('Invalid token payload: missing user id');
+    }
     return this.service.getUserSkillMatrix(userId);
   }
 }

@@ -3,6 +3,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { SkillGapService } from './skill-gap.service';
@@ -23,6 +24,9 @@ export class SkillGapController {
   @Get('me')
   getMySkillGap(@CurrentUser() user: any) {
     const userId = Number(user?.sub ?? user?.id);
+    if (!Number.isInteger(userId)) {
+      throw new UnauthorizedException('Invalid token payload: missing user id');
+    }
     return this.service.getUserSkillGap(userId);
   }
 

@@ -6,6 +6,7 @@ import {
   Body,
   Param,
   ParseIntPipe,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { UserSkillLevelService } from './user-skill-level.service';
@@ -52,6 +53,9 @@ export class UserSkillLevelController {
     @Body() body: { currentLevel: number },
   ) {
     const userId = Number(user?.sub ?? user?.id);
+    if (!Number.isInteger(userId)) {
+      throw new UnauthorizedException('Invalid token payload: missing user id');
+    }
     return this.service.upsertForUser(userId, skillId, body.currentLevel);
   }
 }

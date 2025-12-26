@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  UnauthorizedException,
   Param,
   ParseIntPipe,
   Patch,
@@ -29,6 +30,9 @@ export class TrainingRequirementsController {
   @Post('auto/me')
   autoCreateForMe(@CurrentUser() user: any) {
     const userId = Number(user?.sub ?? user?.id);
+    if (!Number.isInteger(userId)) {
+      throw new UnauthorizedException('Invalid token payload: missing user id');
+    }
     return this.service.autoCreateForUser(userId);
   }
 
@@ -44,6 +48,9 @@ export class TrainingRequirementsController {
   @Get('me')
   listForMe(@CurrentUser() user: any, @Query('status') status?: any) {
     const userId = Number(user?.sub ?? user?.id);
+    if (!Number.isInteger(userId)) {
+      throw new UnauthorizedException('Invalid token payload: missing user id');
+    }
     return this.service.listForUser(userId, status);
   }
 

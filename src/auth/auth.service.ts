@@ -18,9 +18,20 @@ export class AuthService {
       (email === 'admin@herosteels.com' && password === 'admin123');
 
     if (isHardcodedAdmin) {
+      // For the admin to use any ".../me" endpoints, the JWT must contain a user id (sub).
+      // We try to map the hardcoded admin email to a real DB user.
+      const adminUser = await this.usersService.findByEmail(email);
+      if (!adminUser) {
+        throw new UnauthorizedException(
+          `Hardcoded admin login succeeded, but no user exists in DB for ${email}. ` +
+            `Create a user with this email (role ADMIN) or login with a real user account.`,
+        );
+      }
+
       return {
         access_token: this.jwtService.sign({
-          email,
+          sub: adminUser.id,
+          email: adminUser.email,
           role: 'ADMIN',
         }),
       };
