@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { Skill } from './skill.entity';
 import { CreateSkillDto } from './dto/create-skill.dto';
 import { UpdateSkillDto } from './dto/update-skill.dto';
@@ -38,6 +38,18 @@ export class SkillService {
     return this.skillRepo.find({
       where: { isActive: true },
       order: { name: 'ASC' },
+    });
+  }
+
+  // ✅ Typeahead search
+  async search(q: string) {
+    const query = (q || '').trim();
+    if (!query) return [];
+
+    return this.skillRepo.find({
+      where: { isActive: true, name: ILike(`%${query}%`) },
+      order: { name: 'ASC' },
+      take: 25,
     });
   }
 

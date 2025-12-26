@@ -8,6 +8,7 @@ import {
   ParseIntPipe,
   UnauthorizedException,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { UserSkillLevelService } from './user-skill-level.service';
 import { CreateUserSkillLevelDto } from './dto/create-user-skill-level.dto';
@@ -33,6 +34,19 @@ export class UserSkillLevelController {
     @Param('userId', ParseIntPipe) userId: number,
   ) {
     return this.service.findByUser(userId);
+  }
+
+  // ✅ List users under a given level for a specific skill
+  // GET /user-skill-levels/skill/12?maxLevel=3
+  @Get('skill/:skillId')
+  findUsersBySkillUnderLevel(
+    @Param('skillId', ParseIntPipe) skillId: number,
+    @Query('maxLevel') maxLevel?: string,
+    @Query('activeOnly') activeOnly?: string,
+  ) {
+    const max = Number.isFinite(Number(maxLevel)) ? Number(maxLevel) : 3;
+    const active = String(activeOnly ?? 'true').toLowerCase() !== 'false';
+    return this.service.findUsersBySkillUnderLevel(skillId, max, active);
   }
 
   // UPDATE LEVEL BY ID

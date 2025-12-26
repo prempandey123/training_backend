@@ -136,6 +136,54 @@ export class UserSkillLevelService {
     });
   }
 
+  /**
+   * ✅ For training assignment: list users whose current level for a skill is below a threshold.
+   * - Users with no entry for the skill are treated as level 0.
+   */
+  async findUsersBySkillUnderLevel(
+    skillId: number,
+    maxLevel: number = 3,
+    activeOnly: boolean = true,
+  ) {
+    // validate range (frontend asks: below 4 -> maxLevel=3)
+    if (!Number.isInteger(maxLevel) || maxLevel < 0 || maxLevel > 4) {
+      throw new BadRequestException('maxLevel must be an integer between 0 and 4');
+    }
+
+    // ensure skill exists (nice error vs empty list confusion)
+    const skill = await this.skillRepo.findOne({ where: { id: skillId } });
+    if (!skill) throw new NotFoundException('Skill not found');
+
+    const qb = this.userRepo
+      .createQueryBuilder('user')
+      .leftJoin('user_skill_levels', 'usl', 'usl.userId = user.id AND usl.skillId = :skillId', { skillId })
+      .leftJoinAndSelect('user.department', 'department')
+      .leftJoinAndSelect('user.designation', 'designation')
+      .addSelect('COALESCE(usl.currentLevel, 0)', 'currentLevel')
+      .where('COALESCE(usl.currentLevel, 0) <= :maxLevel', { maxLevel })
+      .orderBy('user.name', 'ASC');
+
+    if (activeOnly) {
+      qb.andWhere('user.isActive = :active', { active: true });
+    }
+
+    const rows = await qb.getRawAndEntities();
+
+    // map raw currentLevel back onto entities
+    return rows.entities.map((u, idx) => {
+      const raw = rows.raw[idx];
+      const level = Number(raw?.currentLevel ?? 0);
+      return {
+        userId: u.id,
+        employeeId: u.employeeId,
+        name: u.name,
+        department: u.department?.name,
+        designation: u.designation?.designationName,
+        currentLevel: Number.isFinite(level) ? level : 0,
+      };
+    });
+  }
+
   // UPDATE LEVEL ONLY
   async update(id: number, dto: UpdateUserSkillLevelDto) {
     const userSkill = await this.uslRepo.findOne({

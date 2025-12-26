@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   ParseIntPipe,
+  Query,
 } from '@nestjs/common';
 import { SkillService } from './skills.service';
 import { CreateSkillDto } from './dto/create-skill.dto';
@@ -24,6 +25,13 @@ export class SkillController {
   @Get()
   findAll() {
     return this.service.findAll();
+  }
+
+  // ✅ Typeahead search
+  // GET /skills/search?q=saf
+  @Get('search')
+  search(@Query('q') q: string) {
+    return this.service.search(q);
   }
 
   @Get(':id')
