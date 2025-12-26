@@ -32,6 +32,16 @@ export class TrainingController {
     return this.trainingService.findOne(id);
   }
 
+  /**
+   * Placeholder: biometric device sync.
+   * Backend logic will be integrated later; for now we expose a stable endpoint
+   * so the frontend can wire the UX.
+   */
+  @Get(':id/biometric')
+  getBiometric(@Param('id', ParseIntPipe) id: number) {
+    return this.trainingService.getBiometricSnapshot(id);
+  }
+
   @Patch(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTrainingDto) {
     return this.trainingService.update(id, dto);

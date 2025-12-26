@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateTrainingDto } from './dto/create-training.dto';
@@ -81,6 +81,17 @@ export class TrainingService {
     const t = await this.trainingRepo.findOne({ where: { id } });
     if (!t) throw new NotFoundException('Training not found');
 
+    // Attendance can be marked only for trainings happening today or in the past.
+    if (dto.attendees !== undefined) {
+      const today = this.getLocalISODate();
+      // Dates are stored as YYYY-MM-DD so lexicographic compare is safe.
+      if ((t.date || '').trim() && t.date > today) {
+        throw new BadRequestException(
+          'Attendance for upcoming trainings is locked. You can mark attendance only on the training day or for past trainings.',
+        );
+      }
+    }
+
     if (dto.topic !== undefined) t.topic = dto.topic;
     if (dto.trainingDate !== undefined) t.date = dto.trainingDate;
     if (dto.trainingTime !== undefined) t.time = dto.trainingTime;
@@ -93,6 +104,21 @@ export class TrainingService {
 
     const saved = await this.trainingRepo.save(t);
     return this.toUi(saved);
+  }
+
+  /**
+   * Placeholder biometric snapshot endpoint.
+   * Later, integrate actual device sync and return the device punches.
+   */
+  async getBiometricSnapshot(id: number) {
+    // Ensure training exists
+    await this.findOne(id);
+    return {
+      trainingId: id,
+      syncedAt: new Date().toISOString(),
+      records: [],
+      message: 'Biometric sync is not configured yet. Backend logic will be added later.',
+    };
   }
 
   async remove(id: number) {
@@ -191,5 +217,17 @@ export class TrainingService {
     const h = m[1].padStart(2, '0');
     const min = m[2].padStart(2, '0');
     return `${date}T${h}:${min}:00`;
+  }
+
+  /**
+   * Returns local date as YYYY-MM-DD.
+   * We avoid relying on UTC date because attendance lock should follow server local time.
+   */
+  private getLocalISODate(): string {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 }
