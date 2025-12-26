@@ -1,12 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { User } from './users.entity';
 import { Department } from '../departments/department.entity';
 import { Designation } from '../designations/designation.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class UsersService {
@@ -33,24 +38,43 @@ export class UsersService {
       .getOne();
   }
 
+  // ✅ SMART SEARCH FOR USERS (name / employeeId / email)
+  async searchUsers(q: string) {
+    const query = (q || '').trim();
+    if (!query) return [];
+
+    return this.userRepo.find({
+      where: [
+        { name: ILike(`%${query}%`) },
+        { employeeId: ILike(`%${query}%`) },
+        { email: ILike(`%${query}%`) },
+      ],
+      order: { createdAt: 'DESC' },
+      take: 20,
+    });
+  }
+
+  // ✅ helper: fetch user with password
+  private async findOneWithPassword(id: number) {
+    return this.userRepo
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.id = :id', { id })
+      .getOne();
+  }
+
   // CREATE USER
   async create(dto: CreateUserDto) {
     const department = await this.departmentRepo.findOne({
       where: { id: dto.departmentId },
     });
-    if (!department) {
-      throw new NotFoundException('Department not found');
-    }
+    if (!department) throw new NotFoundException('Department not found');
 
     const designation = await this.designationRepo.findOne({
       where: { id: dto.designationId },
     });
-    if (!designation) {
-      throw new NotFoundException('Designation not found');
-    }
+    if (!designation) throw new NotFoundException('Designation not found');
 
-
-    // dto.password is required on create (DTO validates it)
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
     const user = this.userRepo.create({
@@ -84,20 +108,16 @@ export class UsersService {
     });
   }
 
-  // UPDATE USER (FIXED NULL SAFETY)
+  // UPDATE USER
   async update(id: number, dto: UpdateUserDto) {
     const user = await this.findOne(id);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+    if (!user) throw new NotFoundException('User not found');
 
     if (dto.departmentId) {
       const department = await this.departmentRepo.findOne({
         where: { id: dto.departmentId },
       });
-      if (!department) {
-        throw new NotFoundException('Department not found');
-      }
+      if (!department) throw new NotFoundException('Department not found');
       user.department = department;
     }
 
@@ -105,20 +125,19 @@ export class UsersService {
       const designation = await this.designationRepo.findOne({
         where: { id: dto.designationId },
       });
-      if (!designation) {
-        throw new NotFoundException('Designation not found');
-      }
+      if (!designation) throw new NotFoundException('Designation not found');
       user.designation = designation;
     }
 
-    if (dto.dateOfJoining) {
-      user.dateOfJoining = new Date(dto.dateOfJoining);
-    }
+    if (dto.dateOfJoining) user.dateOfJoining = new Date(dto.dateOfJoining);
 
     if (dto.role) user.role = dto.role;
     if (dto.name) user.name = dto.name;
     if (dto.mobile) user.mobile = dto.mobile;
+
     if (dto.isActive !== undefined) user.isActive = dto.isActive;
+    if (dto.biometricLinked !== undefined)
+      user.biometricLinked = dto.biometricLinked;
 
     // 🔐 if password is provided in edit, hash it and update
     if (dto.password) {
@@ -126,6 +145,34 @@ export class UsersService {
     }
 
     return this.userRepo.save(user);
+  }
+
+  // ✅ UPDATE PASSWORD (Dedicated)
+  async updatePassword(id: number, dto: ChangePasswordDto) {
+    const user = await this.findOneWithPassword(id);
+    if (!user) throw new NotFoundException('User not found');
+
+    // ✅ TS + runtime safety: password must exist here
+    if (!user.password) {
+      throw new BadRequestException(
+        'Password is not available for this user (select:false / data issue)',
+      );
+    }
+
+    // If oldPassword provided -> verify
+    if (dto.oldPassword && dto.oldPassword.trim().length > 0) {
+      const ok = await bcrypt.compare(dto.oldPassword, user.password);
+      if (!ok) throw new BadRequestException('Old password is incorrect');
+    }
+
+    if (!dto.newPassword || dto.newPassword.trim().length < 6) {
+      throw new BadRequestException('New password must be at least 6 characters');
+    }
+
+    user.password = await bcrypt.hash(dto.newPassword, 10);
+    await this.userRepo.save(user);
+
+    return { message: 'Password updated successfully' };
   }
 
   // DELETE USER
@@ -136,12 +183,8 @@ export class UsersService {
   // ✅ REQUIRED FOR DASHBOARD
   async getUserStats() {
     const total = await this.userRepo.count();
-    const active = await this.userRepo.count({
-      where: { isActive: true },
-    });
-    const inactive = await this.userRepo.count({
-      where: { isActive: false },
-    });
+    const active = await this.userRepo.count({ where: { isActive: true } });
+    const inactive = await this.userRepo.count({ where: { isActive: false } });
 
     return { total, active, inactive };
   }
