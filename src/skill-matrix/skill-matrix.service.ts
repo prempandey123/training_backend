@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { User } from '../users/users.entity';
 import { DesignationSkill } from '../designation-skills/designation-skill.entity';
 import { UserSkillLevel } from '../user-skill-levels/user-skill-level.entity';
@@ -8,59 +8,41 @@ import { UserSkillLevel } from '../user-skill-levels/user-skill-level.entity';
 @Injectable()
 export class SkillMatrixService {
   constructor(
-    @InjectRepository(User)
-    private readonly userRepo: Repository<User>,
-
+    @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectRepository(DesignationSkill)
     private readonly designationSkillRepo: Repository<DesignationSkill>,
-
     @InjectRepository(UserSkillLevel)
     private readonly userSkillRepo: Repository<UserSkillLevel>,
   ) {}
 
   async getUserSkillMatrix(userId: number) {
-    // 1️⃣ Fetch user with designation
     const user = await this.userRepo.findOne({
       where: { id: userId },
-      relations: ['designation'],
+      relations: ['department', 'designation'], // ✅ department add
     });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+    if (!user) throw new NotFoundException('User not found');
 
-    // 2️⃣ Fetch designation skills
-    const designationSkills =
-      await this.designationSkillRepo.find({
-        where: {
-          designation: { id: user.designation.id },
-        },
-        relations: ['skill'],
-      });
+    const designationSkills = await this.designationSkillRepo.find({
+      where: { designation: { id: user.designation.id } },
+      relations: ['skill'],
+    });
 
-    // 3️⃣ Fetch user skill levels
     const userSkillLevels = await this.userSkillRepo.find({
-      where: {
-        user: { id: user.id },
-      },
+      where: { user: { id: user.id } },
+      relations: ['skill'], // ✅ so u.skill.id works reliably
     });
 
-    // Map for fast lookup
-    const userSkillMap = new Map(
-      userSkillLevels.map((u) => [
-        u.skill.id,
-        u.currentLevel,
-      ]),
+    const userSkillMap = new Map<number, number>(
+      userSkillLevels.map((u) => [u.skill.id, u.currentLevel]),
     );
 
     let totalRequiredScore = 0;
     let totalCurrentScore = 0;
 
-    // 4️⃣ Merge + calculate gap
     const skills = designationSkills.map((ds) => {
       const requiredLevel = ds.requiredLevel;
-      const currentLevel =
-        userSkillMap.get(ds.skill.id) ?? 0;
+      const currentLevel = userSkillMap.get(ds.skill.id) ?? 0;
 
       totalRequiredScore += requiredLevel;
       totalCurrentScore += currentLevel;
@@ -74,23 +56,18 @@ export class SkillMatrixService {
       };
     });
 
-    // 5️⃣ Completion %
     const completionPercentage =
       totalRequiredScore === 0
         ? 0
-        : Math.round(
-            (totalCurrentScore /
-              totalRequiredScore) *
-              100,
-          );
+        : Math.round((totalCurrentScore / totalRequiredScore) * 100);
 
     return {
       user: {
         id: user.id,
         name: user.name,
         employeeId: user.employeeId,
-        department: user.department.name,
-        designation: user.designation.designationName,
+        department: user.department?.name ?? null,
+        designation: user.designation?.designationName ?? null,
       },
       summary: {
         totalSkills: skills.length,
@@ -100,5 +77,118 @@ export class SkillMatrixService {
       },
       skills,
     };
+  }
+
+  // ✅ Org matrix for ALL employees together
+  async getOrgSkillMatrix(filters: {
+    departmentId?: number;
+    designationId?: number;
+    q?: string;
+  }) {
+    const where: any = { isActive: true };
+
+    if (filters.departmentId) where.department = { id: filters.departmentId };
+    if (filters.designationId) where.designation = { id: filters.designationId };
+
+    let users = await this.userRepo.find({
+      where,
+      relations: ['department', 'designation'],
+      order: { name: 'ASC' },
+    });
+
+    if (filters.q) {
+      const q = filters.q.toLowerCase();
+      users = users.filter(
+        (u) =>
+          u.name?.toLowerCase().includes(q) ||
+          u.employeeId?.toLowerCase().includes(q) ||
+          u.email?.toLowerCase().includes(q),
+      );
+    }
+
+    const userIds = users.map((u) => u.id);
+    const designationIds = Array.from(
+      new Set(users.map((u) => u.designation?.id).filter(Boolean)),
+    ) as number[];
+
+    // required skill levels per designation
+    const designationSkills =
+      designationIds.length > 0
+        ? await this.designationSkillRepo.find({
+            where: { designation: { id: In(designationIds) } },
+            relations: ['skill', 'designation'],
+          })
+        : [];
+
+    // Canonical skill list (union across shown users)
+    const skillMap = new Map<number, { id: number; name: string }>();
+    const requiredMap = new Map<string, number>(); // `${designationId}:${skillId}`
+
+    for (const ds of designationSkills) {
+      const skillId = ds.skill.id;
+      skillMap.set(skillId, { id: skillId, name: ds.skill.name });
+      requiredMap.set(`${ds.designation.id}:${skillId}`, ds.requiredLevel);
+    }
+
+    const skills = Array.from(skillMap.values()).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
+
+    // current skill levels per user
+    const userSkillLevels =
+      userIds.length > 0
+        ? await this.userSkillRepo.find({
+            where: { user: { id: In(userIds) } },
+            relations: ['user', 'skill'], // ✅ IMPORTANT
+          })
+        : [];
+
+    const currentMap = new Map<string, number>(); // `${userId}:${skillId}`
+    for (const usl of userSkillLevels) {
+      currentMap.set(`${usl.user.id}:${usl.skill.id}`, usl.currentLevel);
+    }
+
+    // Build employee rows
+    const employees = users.map((u) => {
+      const designationId = u.designation?.id;
+
+      let totalReq = 0;
+      let totalCur = 0;
+
+      const cells = skills.map((s) => {
+        const required =
+          designationId != null
+            ? requiredMap.get(`${designationId}:${s.id}`) ?? 0
+            : 0;
+
+        const current = currentMap.get(`${u.id}:${s.id}`) ?? 0;
+
+        totalReq += required;
+        totalCur += current;
+
+        return {
+          skillId: s.id,
+          requiredLevel: required,
+          currentLevel: current,
+          gap: required - current,
+        };
+      });
+
+      const completion =
+        totalReq === 0 ? 0 : Math.round((totalCur / totalReq) * 100);
+
+      return {
+        id: u.id,
+        name: u.name,
+        employeeId: u.employeeId,
+        email: u.email,
+        department: u.department?.name ?? null,
+        designation: u.designation?.designationName ?? null,
+        completionPercentage: completion,
+        cells,
+      };
+    });
+
+    return { skills, employees };
   }
 }
