@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { CreateTrainingDto } from './dto/create-training.dto';
 import { UpdateTrainingDto } from './dto/update-training.dto';
 import { Training, TrainingAttendee } from './training.entity';
+import * as ExcelJS from 'exceljs';
 
 type CalendarEvent = {
   id: number;
@@ -230,4 +231,81 @@ export class TrainingService {
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
   }
+
+/**
+ * Export trainings list to Excel for audit purpose.
+ */
+async generateTrainingListExcel(): Promise<ExcelJS.Workbook> {
+  const trainings = await this.trainingRepo.find({
+    order: { id: 'DESC' },
+  });
+
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Training Competency System';
+  workbook.created = new Date();
+
+  const sheet = workbook.addWorksheet('Trainings');
+
+  sheet.columns = [
+    { header: 'ID', key: 'id', width: 8 },
+    { header: 'Topic', key: 'topic', width: 32 },
+    { header: 'Date', key: 'date', width: 14 },
+    { header: 'Time', key: 'time', width: 16 },
+    { header: 'Departments', key: 'departments', width: 28 },
+    { header: 'Skills', key: 'skills', width: 28 },
+    { header: 'Trainer', key: 'trainer', width: 22 },
+    { header: 'Status', key: 'status', width: 14 },
+    { header: 'Participants', key: 'participants', width: 14 },
+    { header: 'Attended', key: 'attended', width: 12 },
+    { header: 'Absent', key: 'absent', width: 12 },
+    { header: 'Postpone Reason', key: 'postponeReason', width: 28 },
+    { header: 'Created At', key: 'createdAt', width: 20 },
+    { header: 'Updated At', key: 'updatedAt', width: 20 },
+  ];
+
+  // Header styling
+  sheet.getRow(1).font = { bold: true };
+  sheet.views = [{ state: 'frozen', ySplit: 1 }];
+  sheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: sheet.columns.length },
+  };
+
+  const safeJoin = (v?: any) =>
+    Array.isArray(v) ? v.filter(Boolean).join(', ') : '';
+
+  trainings.forEach((t) => {
+    const attendees = Array.isArray(t.attendees) ? t.attendees : [];
+    const attendedCount = attendees.filter((a) => a?.status === 'ATTENDED').length;
+    const absentCount = attendees.filter((a) => a?.status === 'ABSENT').length;
+
+    sheet.addRow({
+      id: t.id,
+      topic: t.topic,
+      date: t.date,
+      time: t.time,
+      departments: safeJoin(t.departments),
+      skills: safeJoin(t.skills),
+      trainer: t.trainer || '',
+      status: t.status,
+      participants: attendees.length || 0,
+      attended: attendedCount,
+      absent: absentCount,
+      postponeReason: t.postponeReason || '',
+      createdAt: t.createdAt ? new Date(t.createdAt).toISOString() : '',
+      updatedAt: t.updatedAt ? new Date(t.updatedAt).toISOString() : '',
+    });
+  });
+
+  // Improve readability
+  sheet.eachRow((row, rowNumber) => {
+    row.alignment = { vertical: 'middle', wrapText: true };
+    if (rowNumber > 1) {
+      row.height = 18;
+    }
+  });
+
+  return workbook;
+}
+
 }

@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { CreateTrainingDto } from './dto/create-training.dto';
 import { UpdateTrainingDto } from './dto/update-training.dto';
 import { TrainingService } from './training.service';
@@ -16,6 +17,27 @@ export class TrainingController {
   findAll() {
     return this.trainingService.findAll();
   }
+
+
+// ===============================
+// TRAINING LIST (EXCEL EXPORT)
+// ===============================
+@Get('excel')
+async downloadExcel(@Res() res: Response) {
+  const workbook = await this.trainingService.generateTrainingListExcel();
+
+  res.setHeader(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
+  res.setHeader(
+    'Content-Disposition',
+    'attachment; filename=training-list.xlsx',
+  );
+
+  await workbook.xlsx.write(res);
+  res.end();
+}
 
   /**
    * Calendar-friendly projection of trainings.
