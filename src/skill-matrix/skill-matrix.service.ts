@@ -33,14 +33,22 @@ export class SkillMatrixService {
       relations: ['skill'], // ✅ so u.skill.id works reliably
     });
 
+    // NOTE:
+    // Skills are soft-deleted in the system. When a Skill is soft-deleted,
+    // TypeORM will NOT load it in relations by default, so `u.skill` (or `ds.skill`)
+    // can become `null`. We must guard against that to avoid runtime errors.
     const userSkillMap = new Map<number, number>(
-      userSkillLevels.map((u) => [u.skill.id, u.currentLevel]),
+      userSkillLevels
+        .filter((u) => !!u.skill)
+        .map((u) => [u.skill.id, u.currentLevel]),
     );
 
     let totalRequiredScore = 0;
     let totalCurrentScore = 0;
 
-    const skills = designationSkills.map((ds) => {
+    const skills = designationSkills
+      .filter((ds) => !!ds.skill)
+      .map((ds) => {
       const requiredLevel = ds.requiredLevel;
       const currentLevel = userSkillMap.get(ds.skill.id) ?? 0;
 
@@ -54,7 +62,7 @@ export class SkillMatrixService {
         currentLevel,
         gap: requiredLevel - currentLevel,
       };
-    });
+      });
 
     const completionPercentage =
       totalRequiredScore === 0
@@ -125,6 +133,9 @@ export class SkillMatrixService {
     const requiredMap = new Map<string, number>(); // `${designationId}:${skillId}`
 
     for (const ds of designationSkills) {
+      // If the related Skill (or Designation) is soft-deleted, relation may be null.
+      // Skip it so matrices don't crash / show deleted skills.
+      if (!ds.skill || !ds.designation) continue;
       const skillId = ds.skill.id;
       skillMap.set(skillId, { id: skillId, name: ds.skill.name });
       requiredMap.set(`${ds.designation.id}:${skillId}`, ds.requiredLevel);
@@ -145,6 +156,8 @@ export class SkillMatrixService {
 
     const currentMap = new Map<string, number>(); // `${userId}:${skillId}`
     for (const usl of userSkillLevels) {
+      // Same issue: when Skill is soft-deleted, relation may be null.
+      if (!usl.user || !usl.skill) continue;
       currentMap.set(`${usl.user.id}:${usl.skill.id}`, usl.currentLevel);
     }
 

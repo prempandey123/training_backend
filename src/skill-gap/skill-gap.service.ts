@@ -44,13 +44,20 @@ export class SkillGapService {
         relations: ['skill'],
       });
 
+    const validDesignationSkills = designationSkills.filter(
+      (ds) => ds.skill && ds.skill.id,
+    );
+
     // 3️⃣ Fetch user skill levels
     const userSkills = await this.userSkillRepo.find({
       where: { user: { id: user.id } },
+      relations: ['skill'],
     });
 
     const userSkillMap = new Map(
-      userSkills.map((u) => [u.skill.id, u.currentLevel]),
+      userSkills
+        .filter((u) => u.skill && u.skill.id)
+        .map((u) => [u.skill.id, u.currentLevel]),
     );
 
     let high = 0;
@@ -58,7 +65,7 @@ export class SkillGapService {
     let low = 0;
 
     // 4️⃣ Calculate gaps
-    const skillGaps = designationSkills
+    const skillGaps = validDesignationSkills
       .map((ds) => {
         const currentLevel =
           userSkillMap.get(ds.skill.id) ?? 0;
@@ -92,7 +99,7 @@ export class SkillGapService {
         department: user.department.name,
       },
       summary: {
-        totalSkills: designationSkills.length,
+        totalSkills: validDesignationSkills.length,
         gapSkills: skillGaps.length,
         highPriority: high,
         mediumPriority: medium,
@@ -141,17 +148,24 @@ export class SkillGapService {
         relations: ['skill'],
       });
 
+    const validDesignationSkills = designationSkills.filter(
+      (ds) => ds.skill && ds.skill.id,
+    );
+
     // User skill levels
     const userSkills = await this.userSkillRepo.find({
       where: { user: { id: user.id } },
+      relations: ['skill'],
     });
 
     const userSkillMap = new Map(
-      userSkills.map((u) => [u.skill.id, u.currentLevel]),
+      userSkills
+        .filter((u) => u.skill && u.skill.id)
+        .map((u) => [u.skill.id, u.currentLevel]),
     );
 
     // 3️⃣ Calculate gap
-    for (const ds of designationSkills) {
+    for (const ds of validDesignationSkills) {
       const currentLevel =
         userSkillMap.get(ds.skill.id) ?? 0;
       const gap = ds.requiredLevel - currentLevel;
