@@ -60,6 +60,12 @@ export class SkillGapService {
         .map((u) => [u.skill.id, u.currentLevel]),
     );
 
+    const userRequiredMap = new Map(
+      userSkills
+        .filter((u) => u.skill && u.skill.id)
+        .map((u) => [u.skill.id, u.requiredLevel ?? null]),
+    );
+
     let high = 0;
     let medium = 0;
     let low = 0;
@@ -69,7 +75,9 @@ export class SkillGapService {
       .map((ds) => {
         const currentLevel =
           userSkillMap.get(ds.skill.id) ?? 0;
-        const gap = ds.requiredLevel - currentLevel;
+        const requiredLevel = userRequiredMap.get(ds.skill.id);
+        if (requiredLevel === null || requiredLevel === undefined) return null;
+        const gap = requiredLevel - currentLevel;
 
         if (gap <= 0) return null;
 
@@ -82,7 +90,7 @@ export class SkillGapService {
         return {
           skillId: ds.skill.id,
           skillName: ds.skill.name,
-          requiredLevel: ds.requiredLevel,
+          requiredLevel,
           currentLevel,
           gap,
           priority,
@@ -164,11 +172,19 @@ export class SkillGapService {
         .map((u) => [u.skill.id, u.currentLevel]),
     );
 
+    const userRequiredMap = new Map(
+      userSkills
+        .filter((u) => u.skill && u.skill.id)
+        .map((u) => [u.skill.id, u.requiredLevel ?? null]),
+    );
+
     // 3️⃣ Calculate gap
     for (const ds of validDesignationSkills) {
       const currentLevel =
         userSkillMap.get(ds.skill.id) ?? 0;
-      const gap = ds.requiredLevel - currentLevel;
+      const requiredLevel = userRequiredMap.get(ds.skill.id);
+      if (requiredLevel === null || requiredLevel === undefined) continue;
+      const gap = requiredLevel - currentLevel;
 
       if (gap <= 0) continue;
 

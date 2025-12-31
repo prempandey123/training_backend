@@ -2,7 +2,6 @@ import {
   Controller,
   Post,
   Get,
-  Put,
   Delete,
   Body,
   Param,
@@ -10,7 +9,6 @@ import {
 } from '@nestjs/common';
 import { DesignationSkillService } from './designation-skill.service';
 import { CreateDesignationSkillDto } from './dto/create-designation-skill.dto';
-import { UpdateDesignationSkillDto } from './dto/update-designation-skill.dto';
 
 @Controller('designation-skills')
 export class DesignationSkillController {
@@ -28,15 +26,6 @@ export class DesignationSkillController {
     @Param('designationId', ParseIntPipe) designationId: number,
   ) {
     return this.service.findByDesignation(designationId);
-  }
-
-  // UPDATE REQUIRED LEVEL
-  @Put(':id')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateDesignationSkillDto,
-  ) {
-    return this.service.update(id, dto);
   }
 
   // REMOVE SKILL FROM DESIGNATION

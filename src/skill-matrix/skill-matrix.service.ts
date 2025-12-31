@@ -43,16 +43,24 @@ export class SkillMatrixService {
         .map((u) => [u.skill.id, u.currentLevel]),
     );
 
+    const userRequiredMap = new Map<number, number | null>(
+      userSkillLevels
+        .filter((u) => !!u.skill)
+        .map((u) => [u.skill.id, u.requiredLevel ?? null]),
+    );
+
     let totalRequiredScore = 0;
     let totalCurrentScore = 0;
 
     const skills = designationSkills
       .filter((ds) => !!ds.skill)
       .map((ds) => {
-      const requiredLevel = ds.requiredLevel;
+      // ✅ Required level is user-wise (set by HR). If not set yet, treat as N/A.
+      const requiredLevel = userRequiredMap.get(ds.skill.id) ?? null;
       const currentLevel = userSkillMap.get(ds.skill.id) ?? 0;
-
-      totalRequiredScore += requiredLevel;
+      if (requiredLevel !== null && requiredLevel !== undefined) {
+        totalRequiredScore += requiredLevel;
+      }
       totalCurrentScore += currentLevel;
 
       return {
@@ -60,7 +68,7 @@ export class SkillMatrixService {
         skillName: ds.skill.name,
         requiredLevel,
         currentLevel,
-        gap: requiredLevel - currentLevel,
+        gap: requiredLevel == null ? null : requiredLevel - currentLevel,
       };
       });
 
@@ -119,7 +127,7 @@ export class SkillMatrixService {
       new Set(users.map((u) => u.designation?.id).filter(Boolean)),
     ) as number[];
 
-    // required skill levels per designation
+    // Skills mapped to each designation (used to build the canonical skill list)
     const designationSkills =
       designationIds.length > 0
         ? await this.designationSkillRepo.find({
@@ -130,15 +138,12 @@ export class SkillMatrixService {
 
     // Canonical skill list (union across shown users)
     const skillMap = new Map<number, { id: number; name: string }>();
-    const requiredMap = new Map<string, number>(); // `${designationId}:${skillId}`
-
     for (const ds of designationSkills) {
       // If the related Skill (or Designation) is soft-deleted, relation may be null.
       // Skip it so matrices don't crash / show deleted skills.
       if (!ds.skill || !ds.designation) continue;
       const skillId = ds.skill.id;
       skillMap.set(skillId, { id: skillId, name: ds.skill.name });
-      requiredMap.set(`${ds.designation.id}:${skillId}`, ds.requiredLevel);
     }
 
     const skills = Array.from(skillMap.values()).sort((a, b) =>
@@ -155,10 +160,12 @@ export class SkillMatrixService {
         : [];
 
     const currentMap = new Map<string, number>(); // `${userId}:${skillId}`
+    const requiredUserMap = new Map<string, number | null>(); // `${userId}:${skillId}`
     for (const usl of userSkillLevels) {
       // Same issue: when Skill is soft-deleted, relation may be null.
       if (!usl.user || !usl.skill) continue;
       currentMap.set(`${usl.user.id}:${usl.skill.id}`, usl.currentLevel);
+      requiredUserMap.set(`${usl.user.id}:${usl.skill.id}`, usl.requiredLevel ?? null);
     }
 
     // Build employee rows
@@ -169,21 +176,21 @@ export class SkillMatrixService {
       let totalCur = 0;
 
       const cells = skills.map((s) => {
-        const required =
-          designationId != null
-            ? requiredMap.get(`${designationId}:${s.id}`) ?? 0
-            : 0;
+        // ✅ Required level is user-wise (set by HR). If missing, treat as N/A.
+        const required = requiredUserMap.get(`${u.id}:${s.id}`) ?? null;
 
         const current = currentMap.get(`${u.id}:${s.id}`) ?? 0;
 
-        totalReq += required;
+        if (required !== null && required !== undefined) {
+          totalReq += required;
+        }
         totalCur += current;
 
         return {
           skillId: s.id,
           requiredLevel: required,
           currentLevel: current,
-          gap: required - current,
+          gap: required == null ? null : required - current,
         };
       });
 

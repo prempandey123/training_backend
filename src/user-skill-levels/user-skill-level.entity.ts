@@ -24,6 +24,14 @@ export class UserSkillLevel {
   @Column({ type: 'int' })
   currentLevel: number; // 0–4
 
+  /**
+   * ✅ User-wise required/target level for the same skill.
+   * This enables different required levels for different users
+   * even if they share the same designation.
+   */
+  @Column({ type: 'int', nullable: true })
+  requiredLevel: number | null; // 0–4 (set by HR)
+
   @UpdateDateColumn()
   updatedAt: Date;
 }

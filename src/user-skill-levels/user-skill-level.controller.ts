@@ -13,6 +13,7 @@ import {
 import { UserSkillLevelService } from './user-skill-level.service';
 import { CreateUserSkillLevelDto } from './dto/create-user-skill-level.dto';
 import { UpdateUserSkillLevelDto } from './dto/update-user-skill-level.dto';
+import { BulkSetRequiredLevelsDto } from './dto/bulk-set-required-levels.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
@@ -34,6 +35,17 @@ export class UserSkillLevelController {
     @Param('userId', ParseIntPipe) userId: number,
   ) {
     return this.service.findByUser(userId);
+  }
+
+  // ✅ ADMIN/HR: Bulk set required levels for a user
+  // PUT /user-skill-levels/user/12/required-levels
+  // Body: { levels: [{ skillId, requiredLevel }] }
+  @Put('user/:userId/required-levels')
+  bulkSetRequiredLevels(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Body() dto: BulkSetRequiredLevelsDto,
+  ) {
+    return this.service.bulkSetRequiredLevels(userId, dto.levels);
   }
 
   // ✅ List users under a given level for a specific skill

@@ -1,7 +1,6 @@
 import {
   Entity,
   PrimaryGeneratedColumn,
-  Column,
   ManyToOne,
   Unique,
   JoinColumn,
@@ -22,7 +21,4 @@ export class DesignationSkill {
   @ManyToOne(() => Skill, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'skill_id' })
   skill: Skill;
-
-  @Column({ type: 'int' })
-  requiredLevel: number; // 0–4
 }

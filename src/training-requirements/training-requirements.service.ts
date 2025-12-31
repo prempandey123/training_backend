@@ -80,6 +80,12 @@ export class TrainingRequirementsService {
         .map((u) => [u.skill.id, u.currentLevel]),
     );
 
+    const userRequiredMap = new Map<number, number>(
+      userSkills
+        .filter((u) => u?.skill?.id != null)
+        .map((u) => [u.skill.id, u.requiredLevel ?? 0]),
+    );
+
     // ✅ load relations so skill/suggestedTraining available when matching & toUi
     const openExisting = await this.reqRepo.find({
       where: { user: { id: user.id }, status: 'OPEN' },
@@ -102,7 +108,13 @@ export class TrainingRequirementsService {
       if (!ds?.skill?.id) continue;
 
       const currentLevel = userSkillMap.get(ds.skill.id) ?? 0;
-      const gap = ds.requiredLevel - currentLevel;
+      // ✅ Required level is user-specific (fallback to designation mapping if present)
+      const requiredLevel = userRequiredMap.get(ds.skill.id) ?? null;
+      if (requiredLevel === null || requiredLevel === undefined) {
+        // HR hasn't set this user's required level for the skill yet
+        continue;
+      }
+      const gap = requiredLevel - currentLevel;
 
       if (gap <= 0) {
         resolvedSkillIds.add(ds.skill.id);
@@ -143,7 +155,7 @@ export class TrainingRequirementsService {
       const req = existing ?? this.reqRepo.create();
       req.user = user;
       req.skill = ds.skill;
-      req.requiredLevel = ds.requiredLevel;
+      req.requiredLevel = requiredLevel;
       req.currentLevel = currentLevel;
       req.gap = gap;
       req.priority = priority;

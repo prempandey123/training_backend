@@ -1,6 +1,15 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateUserSkillLevelDto } from './create-user-skill-level.dto';
+import { IsInt, IsOptional, Max, Min } from 'class-validator';
 
-export class UpdateUserSkillLevelDto extends PartialType(
-  CreateUserSkillLevelDto,
-) {}
+export class UpdateUserSkillLevelDto {
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(4)
+  currentLevel?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(4)
+  requiredLevel?: number;
+}

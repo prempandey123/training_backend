@@ -9,7 +9,6 @@ import { DesignationSkill } from './designation-skill.entity';
 import { Designation } from '../designations/designation.entity';
 import { Skill } from '../skills/skill.entity';
 import { CreateDesignationSkillDto } from './dto/create-designation-skill.dto';
-import { UpdateDesignationSkillDto } from './dto/update-designation-skill.dto';
 
 @Injectable()
 export class DesignationSkillService {
@@ -58,7 +57,6 @@ export class DesignationSkillService {
     const ds = this.dsRepo.create({
       designation,
       skill,
-      requiredLevel: dto.requiredLevel,
     });
 
     return this.dsRepo.save(ds);
@@ -71,27 +69,8 @@ export class DesignationSkillService {
         designation: { id: designationId },
       },
       relations: ['skill'],
-      order: { requiredLevel: 'DESC' },
+      order: { id: 'DESC' },
     });
-  }
-
-  // UPDATE REQUIRED LEVEL
-  async update(id: number, dto: UpdateDesignationSkillDto) {
-    const ds = await this.dsRepo.findOne({
-      where: { id },
-    });
-
-    if (!ds) {
-      throw new NotFoundException(
-        'Designation skill mapping not found',
-      );
-    }
-
-    if (dto.requiredLevel !== undefined) {
-      ds.requiredLevel = dto.requiredLevel;
-    }
-
-    return this.dsRepo.save(ds);
   }
 
   // REMOVE SKILL FROM DESIGNATION

@@ -34,6 +34,12 @@ export class UserSkillLevelService {
     }
   }
 
+  private assertRequiredLevelRange(level: number) {
+    if (!Number.isInteger(level) || level < 0 || level > 4) {
+      throw new BadRequestException('requiredLevel must be an integer between 0 and 4');
+    }
+  }
+
   private async assertSkillAllowedForUser(user: User, skill: Skill) {
     const ok = await this.designationSkillRepo.findOne({
       where: {
@@ -49,6 +55,9 @@ export class UserSkillLevelService {
   // CREATE / UPSERT USER SKILL LEVEL
   async create(dto: CreateUserSkillLevelDto) {
     this.assertLevelRange(dto.currentLevel);
+    if (dto.requiredLevel !== undefined) {
+      this.assertRequiredLevelRange(dto.requiredLevel);
+    }
 
     const user = await this.userRepo.findOne({
       where: { id: dto.userId },
@@ -81,9 +90,13 @@ export class UserSkillLevelService {
         user,
         skill,
         currentLevel: dto.currentLevel,
+        requiredLevel: dto.requiredLevel ?? null,
       });
     } else {
       userSkill.currentLevel = dto.currentLevel;
+      if (dto.requiredLevel !== undefined) {
+        userSkill.requiredLevel = dto.requiredLevel;
+      }
     }
 
     return this.uslRepo.save(userSkill);
@@ -118,6 +131,7 @@ export class UserSkillLevelService {
         user,
         skill,
         currentLevel,
+        requiredLevel: null,
       });
     } else {
       userSkill.currentLevel = currentLevel;
@@ -134,6 +148,73 @@ export class UserSkillLevelService {
       },
       order: { updatedAt: 'DESC' },
     });
+  }
+
+  /**
+   * ✅ Bulk set required levels for a user.
+   * - Skill list is validated against user's designation.
+   * - Creates row if missing (currentLevel defaults to 0).
+   */
+  async bulkSetRequiredLevels(
+    userId: number,
+    levels: Array<{ skillId: number; requiredLevel: number }>,
+  ) {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      relations: ['designation'],
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    // ✅ Force HR to set required level for every designation skill
+    const designationSkills = await this.designationSkillRepo.find({
+      where: { designation: { id: user.designation.id } },
+      relations: ['skill'],
+    });
+
+    const designationSkillIds = new Set(
+      designationSkills.filter((ds) => ds.skill?.id).map((ds) => ds.skill.id),
+    );
+    const providedSkillIds = new Set(levels.map((l) => l.skillId));
+
+    const missing = Array.from(designationSkillIds).filter(
+      (id) => !providedSkillIds.has(id),
+    );
+
+    if (missing.length > 0) {
+      throw new BadRequestException(
+        `Required levels missing for ${missing.length} skill(s). Please set required level for all skills in this user's designation. Missing skillIds: ${missing.join(', ')}`,
+      );
+    }
+
+    const results: UserSkillLevel[] = [];
+
+    for (const item of levels) {
+      this.assertRequiredLevelRange(item.requiredLevel);
+
+      const skill = await this.skillRepo.findOne({ where: { id: item.skillId } });
+      if (!skill) throw new NotFoundException(`Skill not found: ${item.skillId}`);
+
+      await this.assertSkillAllowedForUser(user, skill);
+
+      let userSkill = await this.uslRepo.findOne({
+        where: { user: { id: user.id }, skill: { id: skill.id } },
+      });
+
+      if (!userSkill) {
+        userSkill = this.uslRepo.create({
+          user,
+          skill,
+          currentLevel: 0,
+          requiredLevel: item.requiredLevel,
+        });
+      } else {
+        userSkill.requiredLevel = item.requiredLevel;
+      }
+
+      results.push(await this.uslRepo.save(userSkill));
+    }
+
+    return results;
   }
 
   /**
@@ -214,6 +295,25 @@ export class UserSkillLevelService {
       await this.assertSkillAllowedForUser(user, skill);
 
       userSkill.currentLevel = dto.currentLevel;
+    }
+
+    if (dto.requiredLevel !== undefined) {
+      this.assertRequiredLevelRange(dto.requiredLevel);
+
+      const user = await this.userRepo.findOne({
+        where: { id: userSkill.user.id },
+        relations: ['designation'],
+      });
+      if (!user) throw new NotFoundException('User not found');
+
+      const skill = await this.skillRepo.findOne({
+        where: { id: userSkill.skill.id },
+      });
+      if (!skill) throw new NotFoundException('Skill not found');
+
+      await this.assertSkillAllowedForUser(user, skill);
+
+      userSkill.requiredLevel = dto.requiredLevel;
     }
 
     return this.uslRepo.save(userSkill);

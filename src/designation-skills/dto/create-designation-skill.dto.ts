@@ -1,9 +1,4 @@
-import {
-  IsInt,
-  IsNotEmpty,
-  Min,
-  Max,
-} from 'class-validator';
+import { IsInt, IsNotEmpty } from 'class-validator';
 
 export class CreateDesignationSkillDto {
   @IsNotEmpty()
@@ -13,9 +8,4 @@ export class CreateDesignationSkillDto {
   @IsNotEmpty()
   @IsInt()
   skillId: number;
-
-  @IsInt()
-  @Min(0)
-  @Max(4)
-  requiredLevel: number;
 }
