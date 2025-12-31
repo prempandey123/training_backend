@@ -29,7 +29,9 @@ export class TrainingRequirementsController {
   @UseGuards(JwtAuthGuard)
   @Post('auto/me')
   autoCreateForMe(@CurrentUser() user: any) {
-    const userId = Number(user?.sub ?? user?.id);
+    const raw = user?.sub ?? user?.id ?? user?.userId;
+    const userId = Number(raw);
+
     if (!Number.isInteger(userId)) {
       throw new UnauthorizedException('Invalid token payload: missing user id');
     }
@@ -47,13 +49,17 @@ export class TrainingRequirementsController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   listForMe(@CurrentUser() user: any, @Query('status') status?: any) {
-    const userId = Number(user?.sub ?? user?.id);
+    const raw = user?.sub ?? user?.id ?? user?.userId;
+    const userId = Number(raw);
+
     if (!Number.isInteger(userId)) {
       throw new UnauthorizedException('Invalid token payload: missing user id');
     }
     return this.service.listForUser(userId, status);
   }
 
+  // NOTE: Agar aap chahte ho sirf logged-in user hi update kare, to yaha guard laga sakte ho.
+  // Abhi existing behavior ko disturb nahi kar raha, so guard nahi add kiya.
   @Patch(':id')
   updateStatus(
     @Param('id', ParseIntPipe) id: number,

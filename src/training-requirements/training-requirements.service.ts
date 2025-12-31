@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../users/users.entity';
@@ -36,10 +36,19 @@ export class TrainingRequirementsService {
     return 'LOW';
   }
 
+  // ✅ normalize date (string/Date) to YYYY-MM-DD
+  private toYmd(val: any): string | null {
+    if (!val) return null;
+    if (val instanceof Date) return val.toISOString().slice(0, 10);
+    const s = String(val);
+    // if already "YYYY-MM-DD..." take first 10
+    return s.length >= 10 ? s.slice(0, 10) : s;
+  }
+
   /**
    * Auto-create / refresh requirements for a user based on (required - current) gaps.
    * - Creates/updates OPEN requirements for positive gaps
-   * - Optionally closes existing OPEN/IN_PROGRESS requirements when the gap is resolved
+   * - Closes existing OPEN/IN_PROGRESS requirements when the gap is resolved
    */
   async autoCreateForUser(userId: number) {
     const user = await this.userRepo.findOne({
@@ -48,35 +57,50 @@ export class TrainingRequirementsService {
     });
     if (!user) throw new NotFoundException('User not found');
 
+    // ✅ If designation missing, don't crash
+    if (!user.designation?.id) {
+      throw new BadRequestException('User designation not assigned');
+      // (Agar tum empty return chahte ho instead of error, bol dena; but yeh safer hai)
+    }
+
     const designationSkills = await this.designationSkillRepo.find({
       where: { designation: { id: user.designation.id } },
       relations: ['skill'],
     });
 
+    // ✅ FIX: relations: ['skill'] needed, warna u.skill undefined -> 500
     const userSkills = await this.userSkillRepo.find({
       where: { user: { id: user.id } },
+      relations: ['skill'],
     });
-    const userSkillMap = new Map(userSkills.map((u) => [u.skill.id, u.currentLevel]));
 
+    const userSkillMap = new Map<number, number>(
+      userSkills
+        .filter((u) => u?.skill?.id != null)
+        .map((u) => [u.skill.id, u.currentLevel]),
+    );
+
+    // ✅ load relations so skill/suggestedTraining available when matching & toUi
     const openExisting = await this.reqRepo.find({
-      where: {
-        user: { id: user.id },
-        status: 'OPEN',
-      },
+      where: { user: { id: user.id }, status: 'OPEN' },
+      relations: ['skill', 'suggestedTraining', 'user'],
     });
+
     const inProgressExisting = await this.reqRepo.find({
-      where: {
-        user: { id: user.id },
-        status: 'IN_PROGRESS',
-      },
+      where: { user: { id: user.id }, status: 'IN_PROGRESS' },
+      relations: ['skill', 'suggestedTraining', 'user'],
     });
+
     const activeExisting = [...openExisting, ...inProgressExisting];
 
-    // Build requirements from gaps
     const createdOrUpdated: TrainingRequirement[] = [];
     const resolvedSkillIds = new Set<number>();
 
+    const todayIso = this.toYmd(new Date())!;
+
     for (const ds of designationSkills) {
+      if (!ds?.skill?.id) continue;
+
       const currentLevel = userSkillMap.get(ds.skill.id) ?? 0;
       const gap = ds.requiredLevel - currentLevel;
 
@@ -87,28 +111,28 @@ export class TrainingRequirementsService {
 
       const priority = this.getPriority(gap);
 
-      // Find best mapped training for this skill
       const mappings = await this.trainingSkillRepo.find({
         where: { skill: { id: ds.skill.id } },
         relations: ['training', 'skill'],
       });
 
-      const today = new Date();
-      const todayIso = today.toISOString().slice(0, 10); // YYYY-MM-DD
-
-      // Prefer upcoming training, then latest mapping
+      // ✅ Prefer upcoming training; compare using normalized YYYY-MM-DD
       const sorted = mappings
         .filter((m) => m?.training)
         .sort((a, b) => {
-          const ad = a.training?.date ?? '';
-          const bd = b.training?.date ?? '';
+          const ad = this.toYmd(a.training?.date) ?? '';
+          const bd = this.toYmd(b.training?.date) ?? '';
 
           const aUpcoming = ad >= todayIso;
           const bUpcoming = bd >= todayIso;
 
           if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
-          // If both upcoming or both past, pick nearest upcoming / most recent past
-          return ad.localeCompare(bd);
+
+          // both upcoming/past -> pick nearest (for upcoming) / most recent (for past)
+          // For this, descending works better for past; for upcoming ascending works better.
+          // We'll do: upcoming => ascending; past => descending
+          if (aUpcoming && bUpcoming) return ad.localeCompare(bd); // nearest upcoming
+          return bd.localeCompare(ad); // most recent past
         });
 
       const best = sorted[0] ?? null;
@@ -166,14 +190,20 @@ export class TrainingRequirementsService {
 
     const list = await this.reqRepo.find({
       where,
+      relations: ['user', 'skill', 'suggestedTraining'],
       order: { priority: 'DESC', updatedAt: 'DESC' },
     });
+
     return list.map((r) => this.toUi(r));
   }
 
   async updateStatus(id: number, status: RequirementStatus) {
-    const req = await this.reqRepo.findOne({ where: { id } });
+    const req = await this.reqRepo.findOne({
+      where: { id },
+      relations: ['user', 'skill', 'suggestedTraining'],
+    });
     if (!req) throw new NotFoundException('Requirement not found');
+
     req.status = status;
     const saved = await this.reqRepo.save(req);
     return this.toUi(saved);
