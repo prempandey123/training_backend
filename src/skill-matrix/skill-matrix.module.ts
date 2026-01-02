@@ -16,5 +16,6 @@ import { UserSkillLevel } from '../user-skill-levels/user-skill-level.entity';
   ],
   controllers: [SkillMatrixController],
   providers: [SkillMatrixService],
+  exports: [SkillMatrixService],
 })
 export class SkillMatrixModule {}

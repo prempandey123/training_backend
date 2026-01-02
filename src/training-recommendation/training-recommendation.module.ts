@@ -16,5 +16,6 @@ import { TrainingSkill } from 'src/training_skills/training_skills.entity';
   ],
   controllers: [TrainingRecommendationController],
   providers: [TrainingRecommendationService],
+  exports: [TrainingRecommendationService],
 })
 export class TrainingRecommendationModule {}

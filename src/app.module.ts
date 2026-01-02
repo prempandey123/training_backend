@@ -14,6 +14,8 @@ import { SkillMatrixModule } from './skill-matrix/skill-matrix.module';
 import { SkillGapModule } from './skill-gap/skill-gap.module';
 import { TrainingModule } from './trainings/training.module';
 import { TrainingRequirementsModule } from './training-requirements/training-requirements.module';
+import { TrainingRecommendationModule } from './training-recommendation/training-recommendation.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -44,7 +46,9 @@ import { TrainingRequirementsModule } from './training-requirements/training-req
     SkillMatrixModule,
     SkillGapModule,
     TrainingModule,
-    TrainingRequirementsModule
+    TrainingRequirementsModule,
+    TrainingRecommendationModule,
+    ReportsModule,
 
   ],
   controllers: [AppController],

@@ -16,5 +16,6 @@ import { UserSkillLevel } from '../user-skill-levels/user-skill-level.entity';
   ],
   controllers: [SkillGapController],
   providers: [SkillGapService],
+  exports: [SkillGapService],
 })
 export class SkillGapModule {}
