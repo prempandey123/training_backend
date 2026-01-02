@@ -84,6 +84,7 @@ export class UsersService {
       mobile: dto.mobile,
       password: hashedPassword,
       role: dto.role,
+      employeeType: dto.employeeType,
       department,
       designation,
       dateOfJoining: new Date(dto.dateOfJoining),

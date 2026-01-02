@@ -10,6 +10,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { UserRole } from '../enums/user-role.enum';
+import { UserType } from '../enums/user-type.enum';
 
 export class CreateUserDto {
   @IsNotEmpty()
@@ -38,6 +39,11 @@ export class CreateUserDto {
 
   @IsEnum(UserRole)
   role: UserRole;
+
+  // Worker / Staff (HR must set for every user)
+  @IsNotEmpty()
+  @IsEnum(UserType)
+  employeeType: UserType;
 
   @IsDateString()
   dateOfJoining: string;

@@ -6,6 +6,7 @@ import {
   ManyToOne,
 } from 'typeorm';
 import { UserRole } from './enums/user-role.enum';
+import { UserType } from './enums/user-type.enum';
 import { Department } from '../departments/department.entity';
 import { Designation } from '../designations/designation.entity';
 
@@ -39,6 +40,13 @@ export class User {
     eager: true,
   })
   designation: Designation;
+
+  @Column({
+    type: 'enum',
+    enum: UserType,
+    nullable: true,
+  })
+  employeeType: UserType;
 
   @Column({
     type: 'enum',
