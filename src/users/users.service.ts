@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
@@ -65,6 +66,26 @@ export class UsersService {
 
   // CREATE USER
   async create(dto: CreateUserDto) {
+    const email = (dto.email || '').trim().toLowerCase();
+    const employeeId = (dto.employeeId || '').trim();
+
+    // ✅ HR might accidentally try to add same email/employeeId again.
+    // Instead of crashing with DB error, return a clean 409.
+    const existing = await this.userRepo.findOne({
+      where: [{ email }, { employeeId }],
+    });
+    if (existing) {
+      if (existing.email === email) {
+        throw new ConflictException(`Email already exists: ${email}`);
+      }
+      if (existing.employeeId === employeeId) {
+        throw new ConflictException(
+          `Employee ID already exists: ${employeeId}`,
+        );
+      }
+      throw new ConflictException('User already exists');
+    }
+
     const department = await this.departmentRepo.findOne({
       where: { id: dto.departmentId },
     });
@@ -79,8 +100,8 @@ export class UsersService {
 
     const user = this.userRepo.create({
       name: dto.name,
-      email: dto.email,
-      employeeId: dto.employeeId,
+      email,
+      employeeId,
       mobile: dto.mobile,
       password: hashedPassword,
       role: dto.role,
@@ -114,6 +135,32 @@ export class UsersService {
     const user = await this.findOne(id);
     if (!user) throw new NotFoundException('User not found');
 
+    // ✅ If email/employeeId is being changed, block duplicates with a clean 409
+    if (dto.email && dto.email.trim().toLowerCase() !== user.email) {
+      const email = dto.email.trim().toLowerCase();
+      const exists = await this.userRepo
+        .createQueryBuilder('u')
+        .where('u.email = :email', { email })
+        .andWhere('u.id != :id', { id })
+        .getOne();
+      if (exists) throw new ConflictException(`Email already exists: ${email}`);
+      user.email = email;
+    }
+
+    if (dto.employeeId && dto.employeeId.trim() !== user.employeeId) {
+      const employeeId = dto.employeeId.trim();
+      const exists = await this.userRepo
+        .createQueryBuilder('u')
+        .where('u.employeeId = :employeeId', { employeeId })
+        .andWhere('u.id != :id', { id })
+        .getOne();
+      if (exists)
+        throw new ConflictException(
+          `Employee ID already exists: ${employeeId}`,
+        );
+      user.employeeId = employeeId;
+    }
+
     if (dto.departmentId) {
       const department = await this.departmentRepo.findOne({
         where: { id: dto.departmentId },
@@ -135,6 +182,9 @@ export class UsersService {
     if (dto.role) user.role = dto.role;
     if (dto.name) user.name = dto.name;
     if (dto.mobile) user.mobile = dto.mobile;
+
+    // Worker / Staff
+    if (dto.employeeType) user.employeeType = dto.employeeType;
 
     if (dto.isActive !== undefined) user.isActive = dto.isActive;
     if (dto.biometricLinked !== undefined)
