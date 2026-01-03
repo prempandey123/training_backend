@@ -30,9 +30,13 @@ export class DesignationService {
       throw new ConflictException('Designation already exists');
     }
 
-    const departments = await this.departmentRepo.findByIds(
-      dto.departmentIds,
-    );
+    const departmentIds = Array.isArray(dto.departmentIds)
+      ? dto.departmentIds
+      : [];
+
+    const departments = departmentIds.length
+      ? await this.departmentRepo.findByIds(departmentIds)
+      : [];
 
     const designation = this.designationRepo.create({
       designationName: dto.designationName,
