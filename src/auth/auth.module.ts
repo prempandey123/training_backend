@@ -28,5 +28,8 @@ import { JwtStrategy } from './jwt.strategy';
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
+  // Export JwtModule so other modules (and middleware configured in AppModule)
+  // can inject JwtService.
+  exports: [JwtModule],
 })
 export class AuthModule {}

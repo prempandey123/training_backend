@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -16,6 +16,8 @@ import { TrainingModule } from './trainings/training.module';
 import { TrainingRequirementsModule } from './training-requirements/training-requirements.module';
 import { TrainingRecommendationModule } from './training-recommendation/training-recommendation.module';
 import { ReportsModule } from './reports/reports.module';
+import { AuditLogsModule } from './audit-logs/audit-logs.module';
+import { AuditLoggerMiddleware } from './audit-logs/audit-logger.middleware';
 
 @Module({
   imports: [
@@ -50,8 +52,14 @@ import { ReportsModule } from './reports/reports.module';
     TrainingRecommendationModule,
     ReportsModule,
 
+    AuditLogsModule,
+
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(AuditLoggerMiddleware).forRoutes('*');
+  }
+}
