@@ -5,7 +5,9 @@ import { SkillMatrixService } from '../skill-matrix/skill-matrix.service';
 import * as ExcelJS from 'exceljs';
 import { SkillGapService } from '../skill-gap/skill-gap.service';
 import { TrainingRecommendationService } from 'src/training-recommendation/training-recommendation.service';
-import * as PDFDocument from 'pdfkit';
+import PDFDocument from 'pdfkit';
+
+
 import { User } from '../users/users.entity';
 import { Department } from '../departments/department.entity';
 import { Skill } from '../skills/skill.entity';
