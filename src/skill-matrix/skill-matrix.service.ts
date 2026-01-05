@@ -100,11 +100,14 @@ export class SkillMatrixService {
     departmentId?: number;
     designationId?: number;
     q?: string;
+    employeeType?: string;
   }) {
     const where: any = { isActive: true };
 
     if (filters.departmentId) where.department = { id: filters.departmentId };
     if (filters.designationId) where.designation = { id: filters.designationId };
+    if (filters.employeeType) where.employeeType = String(filters.employeeType).toUpperCase();
+    if (filters.employeeType) where.employeeType = filters.employeeType;
 
     let users = await this.userRepo.find({
       where,

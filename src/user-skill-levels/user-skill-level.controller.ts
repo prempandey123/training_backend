@@ -7,6 +7,7 @@ import {
   Param,
   ParseIntPipe,
   UnauthorizedException,
+  ForbiddenException,
   UseGuards,
   Query,
 } from '@nestjs/common';
@@ -81,6 +82,22 @@ export class UserSkillLevelController {
     const userId = Number(user?.sub ?? user?.id);
     if (!Number.isInteger(userId)) {
       throw new UnauthorizedException('Invalid token payload: missing user id');
+    }
+    return this.service.upsertForUser(userId, skillId, body.currentLevel);
+  }
+
+  // ✅ ADMIN: UPDATE ANY USER'S CURRENT LEVEL
+  @UseGuards(JwtAuthGuard)
+  @Put('user/:userId/:skillId')
+  upsertForUser(
+    @CurrentUser() user: any,
+    @Param('userId', ParseIntPipe) userId: number,
+    @Param('skillId', ParseIntPipe) skillId: number,
+    @Body() body: { currentLevel: number },
+  ) {
+    const role = String(user?.role || '').toUpperCase();
+    if (!role.includes('ADMIN')) {
+      throw new ForbiddenException('Only admin can update other users\' levels');
     }
     return this.service.upsertForUser(userId, skillId, body.currentLevel);
   }

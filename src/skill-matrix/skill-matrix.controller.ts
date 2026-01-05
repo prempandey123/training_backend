@@ -29,11 +29,13 @@ export class SkillMatrixController {
     @Query('departmentId') departmentId?: string,
     @Query('designationId') designationId?: string,
     @Query('q') q?: string,
+    @Query('employeeType') employeeType?: string,
   ) {
     return this.service.getOrgSkillMatrix({
       departmentId: departmentId ? Number(departmentId) : undefined,
       designationId: designationId ? Number(designationId) : undefined,
       q: q?.trim() ? q.trim() : undefined,
+      employeeType: employeeType?.trim() ? employeeType.trim() : undefined,
     });
   }
 
