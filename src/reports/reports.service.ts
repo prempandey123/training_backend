@@ -7,11 +7,11 @@ import { SkillGapService } from '../skill-gap/skill-gap.service';
 import { TrainingRecommendationService } from 'src/training-recommendation/training-recommendation.service';
 import PDFDocument from 'pdfkit';
 
-
 import { User } from '../users/users.entity';
 import { Department } from '../departments/department.entity';
 import { Skill } from '../skills/skill.entity';
 import { Training } from '../trainings/training.entity';
+import { TrainingRequirement } from '../training-requirements/training-requirement.entity';
 
 @Injectable()
 export class ReportsService {
@@ -24,6 +24,8 @@ export class ReportsService {
     private readonly departmentsRepo: Repository<Department>,
     @InjectRepository(Skill) private readonly skillsRepo: Repository<Skill>,
     @InjectRepository(Training) private readonly trainingsRepo: Repository<Training>,
+    @InjectRepository(TrainingRequirement)
+    private readonly trainingReqRepo: Repository<TrainingRequirement>,
   ) {}
 
   /**
@@ -102,11 +104,27 @@ export class ReportsService {
           },
         ],
       },
+      {
+        id: 'tni-requirements-excel',
+        name: 'TNI Requirements (Excel)',
+        description:
+          'Employee-wise training needs (OPEN/IN_PROGRESS) with skill gaps and suggested trainings (optional department filter).',
+        type: 'TNI',
+        exports: [
+          {
+            label: 'Export Excel',
+            format: 'excel',
+            url: '/reports/tni-requirements/excel',
+            needs: [],
+          },
+        ],
+      },
     ];
 
     const filtered = reports
-      .filter((r) => (opts?.type ? String(r.type).toLowerCase() === String(opts.type).toLowerCase() : true))
-      // departmentId is handled at export time for the specific report that needs it
+      .filter((r) =>
+        opts?.type ? String(r.type).toLowerCase() === String(opts.type).toLowerCase() : true,
+      )
       .map((r) => r);
 
     return { reports: filtered };
@@ -140,131 +158,73 @@ export class ReportsService {
   }
 
   async generateUserSkillMatrixExcel(userId: number) {
-    const data =
-      await this.skillMatrixService.getUserSkillMatrix(
-        userId,
-      );
+    const data = await this.skillMatrixService.getUserSkillMatrix(userId);
 
     const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet(
-      'Skill Matrix',
-    );
+    const sheet = workbook.addWorksheet('Skill Matrix');
 
     // Header
-    sheet.addRow([
-      'Skill',
-      'Required Level',
-      'Current Level',
-      'Gap',
-    ]);
+    sheet.addRow(['Skill', 'Required Level', 'Current Level', 'Gap']);
 
     // Data
     data.skills.forEach((s) => {
-      sheet.addRow([
-        s.skillName,
-        s.requiredLevel,
-        s.currentLevel,
-        s.gap,
-      ]);
+      sheet.addRow([s.skillName, s.requiredLevel, s.currentLevel, s.gap]);
     });
 
     sheet.addRow([]);
-    sheet.addRow([
-      'Completion %',
-      data.summary.completionPercentage,
-    ]);
+    sheet.addRow(['Completion %', data.summary.completionPercentage]);
 
     return workbook;
   }
-  async generateDepartmentSkillGapExcel(
-  departmentId: number,
-) {
-  const data =
-    await this.skillGapService.getDepartmentSkillGap(
-      departmentId,
-    );
 
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet(
-    'Department Skill Gap',
-  );
+  async generateDepartmentSkillGapExcel(departmentId: number) {
+    const data = await this.skillGapService.getDepartmentSkillGap(departmentId);
 
-  sheet.addRow([
-    'Skill',
-    'Employees Affected',
-    'Average Gap',
-    'Priority',
-  ]);
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Department Skill Gap');
 
-  data.skillGaps.forEach((s) => {
-    sheet.addRow([
-      s.skillName,
-      s.employeesAffected,
-      s.averageGap,
-      s.priority,
-    ]);
-  });
+    sheet.addRow(['Skill', 'Employees Affected', 'Average Gap', 'Priority']);
 
-  return workbook;
-}
-async generateTrainingRecommendationExcel(
-  userId: number,
-) {
-  const data =
-    await this.trainingRecommendationService.getUserTrainingRecommendations(
-      userId,
-    );
+    data.skillGaps.forEach((s) => {
+      sheet.addRow([s.skillName, s.employeesAffected, s.averageGap, s.priority]);
+    });
 
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet(
-    'Training Recommendations',
-  );
+    return workbook;
+  }
 
-  sheet.addRow([
-    'Training',
-    'Priority',
-    'Skills Covered',
-  ]);
+  async generateTrainingRecommendationExcel(userId: number) {
+    const data = await this.trainingRecommendationService.getUserTrainingRecommendations(userId);
 
-  data.recommendations.forEach((r) => {
-    sheet.addRow([
-      r.title,
-      r.priority,
-      r.skillsCovered.join(', '),
-    ]);
-  });
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Training Recommendations');
 
-  return workbook;
-}
+    sheet.addRow(['Training', 'Priority', 'Skills Covered']);
 
+    data.recommendations.forEach((r) => {
+      sheet.addRow([r.title, r.priority, r.skillsCovered.join(', ')]);
+    });
 
-async generateSkillMatrixPDF(userId: number) {
-  const data =
-    await this.skillMatrixService.getUserSkillMatrix(
-      userId,
-    );
+    return workbook;
+  }
 
-  const doc = new PDFDocument();
+  async generateSkillMatrixPDF(userId: number) {
+    const data = await this.skillMatrixService.getUserSkillMatrix(userId);
 
-  doc.fontSize(16).text('Skill Matrix Report');
-  doc.moveDown();
+    const doc = new PDFDocument();
 
-  doc.fontSize(12).text(
-    `Employee: ${data.user.name}`,
-  );
-  doc.text(
-    `Designation: ${data.user.designation}`,
-  );
-  doc.moveDown();
+    doc.fontSize(16).text('Skill Matrix Report');
+    doc.moveDown();
 
-  data.skills.forEach((s) => {
-    doc.text(
-      `${s.skillName} | Required: ${s.requiredLevel} | Current: ${s.currentLevel} | Gap: ${s.gap}`,
-    );
-  });
+    doc.fontSize(12).text(`Employee: ${data.user.name}`);
+    doc.text(`Designation: ${data.user.designation}`);
+    doc.moveDown();
 
-  return doc;
-}
+    data.skills.forEach((s) => {
+      doc.text(`${s.skillName} | Required: ${s.requiredLevel} | Current: ${s.currentLevel} | Gap: ${s.gap}`);
+    });
+
+    return doc;
+  }
 
   async generateTrainingCompletionExcel(departmentId?: number) {
     const all = await this.trainingsRepo.find({
@@ -303,5 +263,84 @@ async generateSkillMatrixPDF(userId: number) {
     return workbook;
   }
 
+  /**
+   * TNI Requirements report
+   * - Shows OPEN/IN_PROGRESS training requirements
+   * - Optional filter by departmentId
+   */
+  async generateTniRequirementsExcel(departmentId?: number) {
+    const where: any = [{ status: 'OPEN' }, { status: 'IN_PROGRESS' }];
 
+    const all = await this.trainingReqRepo.find({
+      where,
+      order: { updatedAt: 'DESC' as any },
+      relations: ['user', 'user.department', 'user.designation', 'skill', 'suggestedTraining'],
+    });
+
+    const rows = (departmentId
+      ? all.filter((r) => String((r as any)?.user?.department?.id) === String(departmentId))
+      : all
+    ).sort((a, b) => {
+      const w = (p: any) => (p === 'HIGH' ? 0 : p === 'MEDIUM' ? 1 : 2);
+      const dw = w((a as any).priority) - w((b as any).priority);
+      if (dw !== 0) return dw;
+      return new Date((b as any).updatedAt as any).getTime() - new Date((a as any).updatedAt as any).getTime();
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('TNI Requirements');
+
+    sheet.addRow([
+      'Employee',
+      'Department',
+      'Designation',
+      'Skill',
+      'Required Level',
+      'Current Level',
+      'Gap',
+      'Priority',
+      'Status',
+      'Suggested Training',
+      'Suggested Topic',
+      'Updated At',
+    ]);
+
+    // Style header
+    const header = sheet.getRow(1);
+    header.font = { bold: true };
+
+    for (const r of rows) {
+      sheet.addRow([
+        (r as any)?.user?.name ?? '',
+        (r as any)?.user?.department?.name ?? '',
+        (r as any)?.user?.designation?.title ?? (r as any)?.user?.designation?.name ?? '',
+        (r as any)?.skill?.name ?? '',
+        (r as any)?.requiredLevel,
+        (r as any)?.currentLevel,
+        (r as any)?.gap,
+        (r as any)?.priority,
+        (r as any)?.status,
+        (r as any)?.suggestedTraining?.topic ?? '',
+        (r as any)?.suggestedTopic ?? '',
+        (r as any)?.updatedAt ? new Date((r as any).updatedAt).toISOString().slice(0, 10) : '',
+      ]);
+    }
+
+    // Auto width (basic) - strict TS safe
+    (sheet.columns ?? [])
+      .filter((c): c is NonNullable<typeof c> => c !== undefined)
+      .forEach((col) => {
+        let max = 10;
+
+        // ✅ ExcelJS typings: eachCell can be possibly undefined → use optional chaining
+        col.eachCell?.({ includeEmpty: true }, (cell) => {
+          const v = cell.value ? String(cell.value) : '';
+          max = Math.max(max, Math.min(50, v.length + 2));
+        });
+
+        col.width = max;
+      });
+
+    return workbook;
+  }
 }

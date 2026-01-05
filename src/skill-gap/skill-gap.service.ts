@@ -18,9 +18,17 @@ export class SkillGapService {
     private readonly userSkillRepo: Repository<UserSkillLevel>,
   ) {}
 
-  private getPriority(gap: number): 'HIGH' | 'MEDIUM' | 'LOW' {
-    if (gap >= 2) return 'HIGH';
-    if (gap === 1) return 'MEDIUM';
+  /**
+   * Priority mapping (as requested):
+   * - currentLevel 0 or 1  => HIGH
+   * - currentLevel 2       => MEDIUM (Moderate)
+   * - currentLevel 3+      => LOW
+   */
+  private getPriorityFromCurrentLevel(
+    currentLevel: number,
+  ): 'HIGH' | 'MEDIUM' | 'LOW' {
+    if (currentLevel <= 1) return 'HIGH';
+    if (currentLevel === 2) return 'MEDIUM';
     return 'LOW';
   }
 
@@ -81,7 +89,7 @@ export class SkillGapService {
 
         if (gap <= 0) return null;
 
-        const priority = this.getPriority(gap);
+        const priority = this.getPriorityFromCurrentLevel(currentLevel);
 
         if (priority === 'HIGH') high++;
         if (priority === 'MEDIUM') medium++;
@@ -137,6 +145,7 @@ export class SkillGapService {
       skillId: number;
       skillName: string;
       totalGap: number;
+      totalCurrentLevel: number;
       employeesAffected: number;
     }
   >();
@@ -195,15 +204,19 @@ export class SkillGapService {
           skillId: ds.skill.id,
           skillName: ds.skill.name,
           totalGap: gap,
+          totalCurrentLevel: currentLevel,
           employeesAffected: 1,
         });
       } else {
         existing.totalGap += gap;
+        existing.totalCurrentLevel += currentLevel;
         existing.employeesAffected += 1;
       }
 
-      if (gap >= 2) high++;
-      else if (gap === 1) medium++;
+      // Priority counts based on CURRENT level (0/1 High, 2 Moderate, 3+ Low)
+      const p = this.getPriorityFromCurrentLevel(currentLevel);
+      if (p === 'HIGH') high++;
+      else if (p === 'MEDIUM') medium++;
       else low++;
     }
   }
@@ -214,9 +227,13 @@ export class SkillGapService {
       const avgGap =
         s.totalGap / s.employeesAffected;
 
+      // Department priority derived from average CURRENT level across affected employees
+      const avgCurrentLevel =
+        s.totalCurrentLevel / s.employeesAffected;
+
       let priority: 'HIGH' | 'MEDIUM' | 'LOW';
-      if (avgGap >= 2) priority = 'HIGH';
-      else if (avgGap >= 1) priority = 'MEDIUM';
+      if (avgCurrentLevel < 2) priority = 'HIGH';
+      else if (avgCurrentLevel < 3) priority = 'MEDIUM';
       else priority = 'LOW';
 
       return {
@@ -224,6 +241,7 @@ export class SkillGapService {
         skillName: s.skillName,
         employeesAffected: s.employeesAffected,
         averageGap: Number(avgGap.toFixed(1)),
+        averageCurrentLevel: Number(avgCurrentLevel.toFixed(1)),
         priority,
       };
     },

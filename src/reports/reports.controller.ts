@@ -173,4 +173,30 @@ export class ReportsController {
     await workbook.xlsx.write(res);
     res.end();
   }
+
+  // ===============================
+  // TNI REQUIREMENTS (EXCEL)
+  // ===============================
+  @Get('tni-requirements/excel')
+  async downloadTniRequirementsExcel(
+    @Query('departmentId') departmentId: string | undefined,
+    @Res() res: Response,
+  ) {
+    const dep = departmentId ? Number(departmentId) : undefined;
+    const workbook = await this.service.generateTniRequirementsExcel(
+      Number.isFinite(dep as any) ? (dep as number) : undefined,
+    );
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=tni-requirements.xlsx',
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  }
 }

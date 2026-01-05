@@ -9,13 +9,14 @@ import { User } from '../users/users.entity';
 import { Department } from '../departments/department.entity';
 import { Skill } from '../skills/skill.entity';
 import { Training } from '../trainings/training.entity';
+import { TrainingRequirement } from '../training-requirements/training-requirement.entity';
 
 @Module({
   imports: [
     SkillMatrixModule,
     SkillGapModule,
     TrainingRecommendationModule,
-    TypeOrmModule.forFeature([User, Department, Skill, Training]),
+    TypeOrmModule.forFeature([User, Department, Skill, Training, TrainingRequirement]),
   ],
   controllers: [ReportsController],
   providers: [ReportsService],
