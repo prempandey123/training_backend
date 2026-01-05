@@ -86,7 +86,7 @@ export class UserSkillLevelController {
     return this.service.upsertForUser(userId, skillId, body.currentLevel);
   }
 
-  // ✅ ADMIN: UPDATE ANY USER'S CURRENT LEVEL
+  // ✅ ADMIN/HR: UPDATE ANY USER'S CURRENT LEVEL
   @UseGuards(JwtAuthGuard)
   @Put('user/:userId/:skillId')
   upsertForUser(
@@ -96,8 +96,8 @@ export class UserSkillLevelController {
     @Body() body: { currentLevel: number },
   ) {
     const role = String(user?.role || '').toUpperCase();
-    if (!role.includes('ADMIN')) {
-      throw new ForbiddenException('Only admin can update other users\' levels');
+    if (!(role.includes('ADMIN') || role.includes('HR'))) {
+      throw new ForbiddenException('Only admin or HR can update other users\' levels');
     }
     return this.service.upsertForUser(userId, skillId, body.currentLevel);
   }
