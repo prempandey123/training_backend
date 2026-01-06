@@ -109,7 +109,7 @@ export class TrainingRequirementsService {
 
       const currentLevel = userSkillMap.get(ds.skill.id) ?? 0;
       // ✅ Required level is user-specific (fallback to designation mapping if present)
-      const requiredLevel = userRequiredMap.get(ds.skill.id) ?? null;
+      const requiredLevel = 4;
       if (requiredLevel === null || requiredLevel === undefined) {
         // HR hasn't set this user's required level for the skill yet
         continue;

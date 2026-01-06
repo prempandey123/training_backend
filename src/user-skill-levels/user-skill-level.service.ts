@@ -95,7 +95,7 @@ export class UserSkillLevelService {
     } else {
       userSkill.currentLevel = dto.currentLevel;
       if (dto.requiredLevel !== undefined) {
-        userSkill.requiredLevel = dto.requiredLevel;
+        userSkill.requiredLevel = 4;
       }
     }
 
@@ -174,25 +174,16 @@ export class UserSkillLevelService {
     const designationSkillIds = new Set(
       designationSkills.filter((ds) => ds.skill?.id).map((ds) => ds.skill.id),
     );
-    const providedSkillIds = new Set(levels.map((l) => l.skillId));
-
-    const missing = Array.from(designationSkillIds).filter(
-      (id) => !providedSkillIds.has(id),
-    );
-
-    if (missing.length > 0) {
-      throw new BadRequestException(
-        `Required levels missing for ${missing.length} skill(s). Please set required level for all skills in this user's designation. Missing skillIds: ${missing.join(', ')}`,
-      );
-    }
+    // 🔒 Required level is fixed (system-wide)
+    const FIXED_REQUIRED_LEVEL = 4;
 
     const results: UserSkillLevel[] = [];
 
-    for (const item of levels) {
-      this.assertRequiredLevelRange(item.requiredLevel);
-
-      const skill = await this.skillRepo.findOne({ where: { id: item.skillId } });
-      if (!skill) throw new NotFoundException(`Skill not found: ${item.skillId}`);
+    // Set required level for every skill mapped to the user's designation.
+    // We intentionally ignore the incoming "levels" payload to keep things consistent.
+    for (const skillId of Array.from(designationSkillIds)) {
+      const skill = await this.skillRepo.findOne({ where: { id: skillId } });
+      if (!skill) throw new NotFoundException(`Skill not found: ${skillId}`);
 
       await this.assertSkillAllowedForUser(user, skill);
 
@@ -205,14 +196,15 @@ export class UserSkillLevelService {
           user,
           skill,
           currentLevel: 0,
-          requiredLevel: item.requiredLevel,
+          requiredLevel: FIXED_REQUIRED_LEVEL,
         });
       } else {
-        userSkill.requiredLevel = item.requiredLevel;
+        userSkill.requiredLevel = FIXED_REQUIRED_LEVEL;
       }
 
       results.push(await this.uslRepo.save(userSkill));
     }
+
 
     return results;
   }
@@ -313,7 +305,7 @@ export class UserSkillLevelService {
 
       await this.assertSkillAllowedForUser(user, skill);
 
-      userSkill.requiredLevel = dto.requiredLevel;
+      userSkill.requiredLevel = 4;
     }
 
     return this.uslRepo.save(userSkill);

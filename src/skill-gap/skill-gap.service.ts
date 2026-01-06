@@ -83,8 +83,7 @@ export class SkillGapService {
       .map((ds) => {
         const currentLevel =
           userSkillMap.get(ds.skill.id) ?? 0;
-        const requiredLevel = userRequiredMap.get(ds.skill.id);
-        if (requiredLevel === null || requiredLevel === undefined) return null;
+        const requiredLevel = 4;
         const gap = requiredLevel - currentLevel;
 
         if (gap <= 0) return null;
@@ -191,7 +190,7 @@ export class SkillGapService {
     for (const ds of validDesignationSkills) {
       const currentLevel =
         userSkillMap.get(ds.skill.id) ?? 0;
-      const requiredLevel = userRequiredMap.get(ds.skill.id);
+      const requiredLevel = 4;
       if (requiredLevel === null || requiredLevel === undefined) continue;
       const gap = requiredLevel - currentLevel;
 

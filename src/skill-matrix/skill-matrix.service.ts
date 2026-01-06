@@ -56,11 +56,9 @@ export class SkillMatrixService {
       .filter((ds) => !!ds.skill)
       .map((ds) => {
       // ✅ Required level is user-wise (set by HR). If not set yet, treat as N/A.
-      const requiredLevel = userRequiredMap.get(ds.skill.id) ?? null;
+      const requiredLevel = 4;
       const currentLevel = userSkillMap.get(ds.skill.id) ?? 0;
-      if (requiredLevel !== null && requiredLevel !== undefined) {
-        totalRequiredScore += requiredLevel;
-      }
+      totalRequiredScore += requiredLevel;
       totalCurrentScore += currentLevel;
 
       return {
@@ -180,13 +178,11 @@ export class SkillMatrixService {
 
       const cells = skills.map((s) => {
         // ✅ Required level is user-wise (set by HR). If missing, treat as N/A.
-        const required = requiredUserMap.get(`${u.id}:${s.id}`) ?? null;
+        const required = 4;
 
         const current = currentMap.get(`${u.id}:${s.id}`) ?? 0;
 
-        if (required !== null && required !== undefined) {
-          totalReq += required;
-        }
+        totalReq += required;
         totalCur += current;
 
         return {
