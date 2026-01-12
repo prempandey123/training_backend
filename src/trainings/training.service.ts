@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { CreateTrainingDto } from './dto/create-training.dto';
 import { UpdateTrainingDto } from './dto/update-training.dto';
 import { Training, TrainingAttendee } from './training.entity';
+import { TrainingType } from './enums/training-type.enum';
 import * as ExcelJS from 'exceljs';
 
 type CalendarEvent = {
@@ -33,6 +34,7 @@ export class TrainingService {
     const training = this.trainingRepo.create();
 
     training.topic = dto.topic;
+    training.trainingType = dto.trainingType ?? TrainingType.INTERNAL;
     training.date = dto.trainingDate;
     training.time = dto.trainingTime;
     training.departments = dto.departments ?? [];

@@ -1,5 +1,6 @@
-import { IsArray, IsIn, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsArray, IsEnum, IsIn, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
+import { TrainingType } from '../enums/training-type.enum';
 
 class AttendeeDto {
   @IsString()
@@ -57,4 +58,8 @@ export class UpdateTrainingDto {
   @IsOptional()
   @IsString()
   postponeReason?: string;
+
+  @IsOptional()
+  @IsEnum(TrainingType)
+  trainingType?: TrainingType;
 }

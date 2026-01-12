@@ -1,5 +1,6 @@
-import { IsArray, IsIn, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { IsArray, IsEnum, IsIn, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
+import { TrainingType } from '../enums/training-type.enum';
 
 class AssignedEmployeeDto {
   @IsString()
@@ -53,4 +54,8 @@ export class CreateTrainingDto {
   @IsOptional()
   @IsString()
   trainer?: string;
+
+  @IsOptional()
+  @IsEnum(TrainingType)
+  trainingType?: TrainingType;
 }

@@ -36,6 +36,8 @@ import { AuditLoggerMiddleware } from './audit-logs/audit-logger.middleware';
         database: config.get<string>('DB_NAME') ?? 'training',
         autoLoadEntities: true,
         synchronize: (config.get<string>('TYPEORM_SYNC') ?? 'true') === 'true',
+        migrations: [__dirname + '/migrations/*{.ts,.js}'],
+        migrationsRun: (config.get<string>('TYPEORM_MIGRATIONS_RUN') ?? 'false') === 'true',
       }),
     }),
     UsersModule,

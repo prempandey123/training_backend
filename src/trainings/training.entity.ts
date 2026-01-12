@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { TrainingType } from './enums/training-type.enum';
 
 export type TrainingStatus = 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'POSTPONED';
 
@@ -16,6 +17,15 @@ export class Training {
 
   @Column({ type: 'varchar', length: 255 })
   topic: string;
+
+
+  @Column({
+    type: 'enum',
+    enum: TrainingType,
+    enumName: 'training_type_enum',
+    default: TrainingType.INTERNAL,
+  })
+  trainingType: TrainingType;
 
   /**
    * Compatibility alias used by some modules that still refer to `title`.
