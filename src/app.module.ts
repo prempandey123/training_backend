@@ -18,12 +18,15 @@ import { TrainingRecommendationModule } from './training-recommendation/training
 import { ReportsModule } from './reports/reports.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { AuditLoggerMiddleware } from './audit-logs/audit-logger.middleware';
+import { ScheduleModule } from '@nestjs/schedule';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -54,7 +57,11 @@ import { AuditLoggerMiddleware } from './audit-logs/audit-logger.middleware';
     TrainingRecommendationModule,
     ReportsModule,
 
+    NotificationsModule,
+
     AuditLogsModule,
+
+    NotificationsModule,
 
   ],
   controllers: [AppController],

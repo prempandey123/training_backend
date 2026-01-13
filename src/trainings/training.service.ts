@@ -6,6 +6,8 @@ import { UpdateTrainingDto } from './dto/update-training.dto';
 import { Training, TrainingAttendee } from './training.entity';
 import { TrainingType } from './enums/training-type.enum';
 import * as ExcelJS from 'exceljs';
+import { User } from '../users/users.entity';
+import { BrevoEmailService } from '../notifications/services/brevo-email.service';
 
 type CalendarEvent = {
   id: number;
@@ -26,6 +28,9 @@ export class TrainingService {
   constructor(
     @InjectRepository(Training)
     private readonly trainingRepo: Repository<Training>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
+    private readonly mail: BrevoEmailService,
   ) {}
 
   async create(dto: CreateTrainingDto) {
@@ -57,7 +62,31 @@ export class TrainingService {
     training.trainer = dto.trainer ?? undefined;
 
     const saved = await this.trainingRepo.save(training);
+
+    // ✅ Notify participants on creation (once)
+    await this.sendCreatedMails(saved).catch(() => undefined);
     return this.toUi(saved);
+  }
+
+  private async sendCreatedMails(training: Training) {
+    if (training.mailSentOnCreate) return;
+    const empIds = (training.assignedEmployees ?? []).map((e) => e.empId).filter(Boolean);
+    if (empIds.length === 0) return;
+
+    const users = await this.userRepo
+      .createQueryBuilder('u')
+      .where('u.employeeId IN (:...ids)', { ids: empIds })
+      .getMany();
+    if (users.length === 0) return;
+
+    await this.mail.sendMail(
+      users.map((u) => ({ email: u.email, name: u.name })),
+      'Training Assigned',
+      this.mail.trainingCreatedHtml(training),
+    );
+
+    training.mailSentOnCreate = true;
+    await this.trainingRepo.save(training);
   }
 
   async findAll() {

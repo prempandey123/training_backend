@@ -73,4 +73,14 @@ export class Training {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  // ✅ Email flags to prevent duplicate notifications
+  @Column({ type: 'boolean', default: false })
+  mailSentOnCreate: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  mailSent1DayBefore: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  mailSent1HourBefore: boolean;
 }
