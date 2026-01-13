@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -49,6 +50,28 @@ export class UserSkillLevelService {
     });
     if (!ok) {
       throw new BadRequestException('Skill not allowed for this user designation');
+    }
+  }
+
+  /**
+   * 🔒 HOD scope: actor can only manage users within their own department.
+   */
+  async assertHodScopeForUser(actor: any, targetUserId: number) {
+    const role = String(actor?.role ?? '').toUpperCase();
+    if (role !== 'HOD') return;
+
+    const hodDeptId = Number(actor?.departmentId);
+    if (!hodDeptId) throw new ForbiddenException('Missing departmentId in token');
+
+    const target = await this.userRepo.findOne({
+      where: { id: targetUserId },
+      relations: ['department'],
+    });
+    if (!target) throw new NotFoundException('User not found');
+
+    const targetDeptId = Number(target.department?.id);
+    if (!targetDeptId || targetDeptId !== hodDeptId) {
+      throw new ForbiddenException('HOD can manage only users in own department');
     }
   }
 

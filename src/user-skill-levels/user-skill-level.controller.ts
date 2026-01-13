@@ -17,8 +17,11 @@ import { UpdateUserSkillLevelDto } from './dto/update-user-skill-level.dto';
 import { BulkSetRequiredLevelsDto } from './dto/bulk-set-required-levels.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
 
 @Controller('user-skill-levels')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class UserSkillLevelController {
   constructor(
     private readonly service: UserSkillLevelService,
@@ -26,15 +29,26 @@ export class UserSkillLevelController {
 
   // CREATE / UPDATE LEVEL
   @Post()
-  create(@Body() dto: CreateUserSkillLevelDto) {
+  @Roles('ADMIN', 'HRD', 'HOD')
+  async create(@CurrentUser() actor: any, @Body() dto: CreateUserSkillLevelDto) {
+    await this.service.assertHodScopeForUser(actor, dto.userId);
     return this.service.create(dto);
   }
 
   // GET SKILLS FOR USER
   @Get('user/:userId')
-  findByUser(
+  @Roles('ADMIN', 'HRD', 'HOD', 'EMPLOYEE')
+  async findByUser(
+    @CurrentUser() actor: any,
     @Param('userId', ParseIntPipe) userId: number,
   ) {
+    const actorId = Number(actor?.sub ?? actor?.id);
+    const role = String(actor?.role ?? '').toUpperCase();
+    // Employee can only view own
+    if (role === 'EMPLOYEE' && actorId !== userId) {
+      throw new ForbiddenException('Employees can view only their own skills');
+    }
+    await this.service.assertHodScopeForUser(actor, userId);
     return this.service.findByUser(userId);
   }
 
@@ -42,6 +56,7 @@ export class UserSkillLevelController {
   // PUT /user-skill-levels/user/12/required-levels
   // Body: { levels: [{ skillId, requiredLevel }] }
   @Put('user/:userId/required-levels')
+  @Roles('ADMIN', 'HRD')
   bulkSetRequiredLevels(
     @Param('userId', ParseIntPipe) userId: number,
     @Body() dto: BulkSetRequiredLevelsDto,
@@ -64,6 +79,7 @@ export class UserSkillLevelController {
 
   // UPDATE LEVEL BY ID
   @Put(':id')
+  @Roles('ADMIN', 'HRD')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateUserSkillLevelDto,
@@ -89,15 +105,23 @@ export class UserSkillLevelController {
   // ✅ ADMIN/HR: UPDATE ANY USER'S CURRENT LEVEL
   @UseGuards(JwtAuthGuard)
   @Put('user/:userId/:skillId')
-  upsertForUser(
+  async upsertForUser(
     @CurrentUser() user: any,
     @Param('userId', ParseIntPipe) userId: number,
     @Param('skillId', ParseIntPipe) skillId: number,
     @Body() body: { currentLevel: number },
   ) {
     const role = String(user?.role || '').toUpperCase();
-    if (!(role.includes('ADMIN') || role.includes('HR'))) {
-      throw new ForbiddenException('Only admin or HR can update other users\' levels');
+    const isAdminHr = role.includes('ADMIN') || role.includes('HR');
+    const isHod = role === 'HOD';
+
+    if (!isAdminHr && !isHod) {
+      throw new ForbiddenException('Only admin/HR or HOD can update other users\' levels');
+    }
+
+    // 🔒 If HOD: only own department users
+    if (isHod) {
+      await this.service.assertHodScopeForUser(user, userId);
     }
     return this.service.upsertForUser(userId, skillId, body.currentLevel);
   }

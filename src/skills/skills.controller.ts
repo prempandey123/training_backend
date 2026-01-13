@@ -8,16 +8,22 @@ import {
   Param,
   ParseIntPipe,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { SkillService } from './skills.service';
 import { CreateSkillDto } from './dto/create-skill.dto';
 import { UpdateSkillDto } from './dto/update-skill.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
 
 @Controller('skills')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class SkillController {
   constructor(private readonly service: SkillService) {}
 
   @Post()
+  @Roles('ADMIN', 'HOD')
   create(@Body() dto: CreateSkillDto) {
     return this.service.create(dto);
   }
@@ -40,6 +46,7 @@ export class SkillController {
   }
 
   @Put(':id')
+  @Roles('ADMIN')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateSkillDto,
@@ -48,6 +55,7 @@ export class SkillController {
   }
 
   @Delete(':id')
+  @Roles('ADMIN')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.service.remove(id);
   }

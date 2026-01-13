@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
@@ -53,6 +54,95 @@ export class UsersService {
       order: { createdAt: 'DESC' },
       take: 20,
     });
+  }
+
+  /**
+   * 🔒 HOD scope: HOD can only operate on users within their own department.
+   * ADMIN/HR roles bypass scope.
+   */
+  private async assertHodScopeForUser(requester: any, targetUserId: number) {
+    const role = String(requester?.role || '').toUpperCase();
+    if (role !== 'HOD') return;
+
+    const requesterDeptId = Number(requester?.departmentId);
+    if (!requesterDeptId) {
+      throw new ForbiddenException('HOD department not found in token');
+    }
+
+    const target = await this.userRepo.findOne({
+      where: { id: targetUserId },
+      relations: ['department'],
+    });
+    if (!target) throw new NotFoundException('User not found');
+
+    const targetDeptId = Number(target?.department?.id);
+    if (targetDeptId !== requesterDeptId) {
+      throw new ForbiddenException('You can only edit users in your department');
+    }
+  }
+
+  // ✅ LIST USERS (scoped)
+  async findAllScoped(requester: any) {
+    const role = String(requester?.role || '').toUpperCase();
+    if (role === 'HOD') {
+      const deptId = Number(requester?.departmentId);
+      return this.userRepo.find({
+        where: { department: { id: deptId } },
+        relations: { department: true, designation: true },
+        order: { createdAt: 'DESC' },
+      });
+    }
+
+    return this.userRepo.find({
+      relations: { department: true, designation: true },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  // ✅ GET USER (scoped)
+  async findOneScoped(requester: any, id: number) {
+    await this.assertHodScopeForUser(requester, id);
+    const user = await this.userRepo.findOne({
+      where: { id },
+      relations: { department: true, designation: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
+  // ✅ SEARCH USERS (scoped)
+  async searchUsersScoped(requester: any, q: string) {
+    const query = (q || '').trim();
+    if (!query) return [];
+
+    const role = String(requester?.role || '').toUpperCase();
+    if (role === 'HOD') {
+      const deptId = Number(requester?.departmentId);
+      return this.userRepo.find({
+        where: [
+          { name: ILike(`%${query}%`), department: { id: deptId } },
+          { employeeId: ILike(`%${query}%`), department: { id: deptId } },
+          { email: ILike(`%${query}%`), department: { id: deptId } },
+        ],
+        relations: { department: true, designation: true },
+        order: { createdAt: 'DESC' },
+        take: 20,
+      });
+    }
+
+    return this.searchUsers(query);
+  }
+
+  // ✅ UPDATE USER (scoped)
+  async updateScoped(requester: any, id: number, dto: UpdateUserDto) {
+    await this.assertHodScopeForUser(requester, id);
+    return this.update(id, dto);
+  }
+
+  // ✅ UPDATE PASSWORD (scoped)
+  async updatePasswordScoped(requester: any, id: number, dto: ChangePasswordDto) {
+    await this.assertHodScopeForUser(requester, id);
+    return this.updatePassword(id, dto);
   }
 
   // ✅ helper: fetch user with password
@@ -118,9 +208,7 @@ export class UsersService {
 
   // LIST USERS
   findAll() {
-    return this.userRepo.find({
-      order: { createdAt: 'DESC' },
-    });
+    return this.userRepo.find({ order: { createdAt: 'DESC' } });
   }
 
   // GET ONE

@@ -33,6 +33,7 @@ export class AuthService {
           sub: adminUser.id,
           email: adminUser.email,
           role: 'ADMIN',
+          departmentId: adminUser.department?.id ?? null,
         }),
       };
     }
@@ -48,6 +49,7 @@ export class AuthService {
         sub: user.id,
         email: user.email,
         role: user.role,
+        departmentId: user.department?.id ?? null,
       }),
     };
   }
