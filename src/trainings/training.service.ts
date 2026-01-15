@@ -64,7 +64,11 @@ export class TrainingService {
     const saved = await this.trainingRepo.save(training);
 
     // ✅ Notify participants on creation (once)
-    await this.sendCreatedMails(saved).catch(() => undefined);
+    // Do not fail the API call if mail fails, but DO log the real reason.
+    await this.sendCreatedMails(saved).catch((e) => {
+      // eslint-disable-next-line no-console
+      console.error('sendCreatedMails failed:', e);
+    });
     return this.toUi(saved);
   }
 
@@ -79,8 +83,14 @@ export class TrainingService {
       .getMany();
     if (users.length === 0) return;
 
+    // Only send to users that actually have an email.
+    const recipients = users
+      .filter((u) => !!u.email)
+      .map((u) => ({ email: u.email, name: u.name }));
+    if (recipients.length === 0) return;
+
     await this.mail.sendMail(
-      users.map((u) => ({ email: u.email, name: u.name })),
+      recipients,
       'Training Assigned',
       this.mail.trainingCreatedHtml(training),
     );
@@ -89,7 +99,46 @@ export class TrainingService {
     await this.trainingRepo.save(training);
   }
 
-  async findAll() {
+  
+  /**
+   * Sends the "Training Assigned" email to participants using the form payload,
+   * without creating/saving a Training record. Used by the UI "Send mail to participants" button.
+   */
+  async sendMailPreview(dto: CreateTrainingDto) {
+    const empIds = (dto.assignedEmployees ?? []).map((e) => e.empId).filter(Boolean);
+    if (empIds.length === 0) {
+      throw new BadRequestException('No participants selected');
+    }
+
+    const users = await this.userRepo
+      .createQueryBuilder('u')
+      .where('u.employeeId IN (:...ids)', { ids: empIds })
+      .getMany();
+
+    // Only send to users that actually have an email.
+    const recipients = users
+      .filter((u) => !!u.email)
+      .map((u) => ({ email: u.email as string, name: u.name }));
+
+    if (recipients.length === 0) {
+      throw new BadRequestException('No participant emails found');
+    }
+
+    await this.mail.sendMail(
+      recipients,
+      'Training Assigned',
+      this.mail.trainingCreatedHtml({
+        topic: dto.topic,
+        date: dto.trainingDate,
+        time: dto.trainingTime,
+        trainer: dto.trainer ?? null,
+      }),
+    );
+
+    return { sent: true, recipients: recipients.length };
+  }
+
+async findAll() {
     const list = await this.trainingRepo.find({ order: { id: 'DESC' } });
     return list.map((t) => this.toUi(t));
   }

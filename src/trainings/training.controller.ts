@@ -13,6 +13,12 @@ export class TrainingController {
     return this.trainingService.create(dto);
   }
 
+  // Send training mail to selected participants without creating a training (used by UI 'Send mail to participants' button).
+  @Post('send-mail-preview')
+  sendMailPreview(@Body() dto: CreateTrainingDto) {
+    return this.trainingService.sendMailPreview(dto);
+  }
+
   @Get()
   findAll() {
     return this.trainingService.findAll();

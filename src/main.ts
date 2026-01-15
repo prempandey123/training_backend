@@ -1,3 +1,8 @@
+// Load environment variables from .env (if present) before anything else.
+// This keeps existing deployments working while enabling local .env-based configs
+// for BREVO_* and other settings.
+import 'dotenv/config';
+
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import {
