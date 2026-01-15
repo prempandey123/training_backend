@@ -38,7 +38,9 @@ import { NotificationsModule } from './notifications/notifications.module';
         password: config.get<string>('DB_PASSWORD') ?? 'postgres',
         database: config.get<string>('DB_NAME') ?? 'training',
         autoLoadEntities: true,
-        synchronize: (config.get<string>('TYPEORM_SYNC') ?? 'true') === 'true',
+        // IMPORTANT: keep synchronize OFF by default to prevent accidental schema/data loss.
+        // Enable explicitly via TYPEORM_SYNC=true for local/dev only.
+        synchronize: (config.get<string>('TYPEORM_SYNC') ?? 'false') === 'true',
         migrations: [__dirname + '/migrations/*{.ts,.js}'],
         migrationsRun: (config.get<string>('TYPEORM_MIGRATIONS_RUN') ?? 'false') === 'true',
       }),
@@ -60,9 +62,6 @@ import { NotificationsModule } from './notifications/notifications.module';
     NotificationsModule,
 
     AuditLogsModule,
-
-    NotificationsModule,
-
   ],
   controllers: [AppController],
   providers: [AppService],

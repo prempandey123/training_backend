@@ -9,6 +9,12 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  if (!process.env.JWT_SECRET) {
+    console.warn(
+      '⚠️  JWT_SECRET is not set. Using the default dev secret. Set JWT_SECRET in your .env for security.',
+    );
+  }
+
   // 🔹 Enable DTO validation globally
   app.useGlobalPipes(
     new ValidationPipe({

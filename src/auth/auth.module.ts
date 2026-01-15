@@ -20,7 +20,7 @@ import { JwtStrategy } from './jwt.strategy';
           raw && !Number.isNaN(Number(raw)) ? Number(raw) : 60 * 60 * 24; // default 1 day
 
         return {
-          secret: config.get<string>('JWT_SECRET') ?? 'TEMP_JWT_SECRET_123',
+          secret: config.get<string>('JWT_SECRET') ?? 'DEV_ONLY_CHANGE_ME',
           signOptions: { expiresIn },
         };
       },
