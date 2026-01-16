@@ -162,11 +162,20 @@ async findAll() {
     const t = await this.trainingRepo.findOne({ where: { id } });
     if (!t) throw new NotFoundException('Training not found');
 
-    // Attendance can be marked only for trainings happening today or in the past.
+    /**
+     * Attendance can be marked only for trainings happening today or in the past.
+     * However, for UPCOMING trainings we still allow editing the participant list
+     * as long as the request does not attempt to set attendance status.
+     */
     if (dto.attendees !== undefined) {
       const today = this.getLocalISODate();
       // Dates are stored as YYYY-MM-DD so lexicographic compare is safe.
-      if ((t.date || '').trim() && t.date > today) {
+      const isUpcoming = (t.date || '').trim() && t.date > today;
+      const triesToMarkAttendance =
+        Array.isArray(dto.attendees) &&
+        dto.attendees.some((a) => a?.status === 'ATTENDED' || a?.status === 'ABSENT');
+
+      if (isUpcoming && triesToMarkAttendance) {
         throw new BadRequestException(
           'Attendance for upcoming trainings is locked. You can mark attendance only on the training day or for past trainings.',
         );
