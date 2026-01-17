@@ -165,8 +165,20 @@ async findAll() {
     const t = await this.trainingRepo.findOne({ where: { id } });
     if (!t) throw new NotFoundException('Training not found');
 
-    // Attendance can be marked only for trainings happening today or in the past.
-    if (dto.attendees !== undefined) {
+    const prevStatus = t.status;
+    const prevDate = t.date;
+    const prevTime = t.time;
+
+    // Attendance (ATTENDED/ABSENT) can be marked only for trainings happening today or in the past.
+    // NOTE: The training edit screen also sends an `attendees` array to manage the participant roster
+    // (employee list) even for upcoming trainings. We only lock updates that actually include
+    // attendance status changes.
+    const isAttendanceMarkingRequest =
+      dto.attendees !== undefined &&
+      Array.isArray(dto.attendees) &&
+      dto.attendees.some((a: any) => a && typeof a === 'object' && 'status' in a);
+
+    if (isAttendanceMarkingRequest) {
       const today = this.getLocalISODate();
       // Dates are stored as YYYY-MM-DD so lexicographic compare is safe.
       if ((t.date || '').trim() && t.date > today) {
@@ -187,8 +199,56 @@ async findAll() {
     if (dto.attendees !== undefined) t.attendees = dto.attendees;
     if (dto.postponeReason !== undefined) t.postponeReason = dto.postponeReason;
 
+    // If the client is explicitly postponing (or re-postponing) the training,
+    // allow a fresh notification by resetting the flag.
+    const isPostponeAction =
+      dto.status === 'POSTPONED' &&
+      (
+        prevStatus !== 'POSTPONED' ||
+        dto.trainingDate !== undefined ||
+        dto.trainingTime !== undefined ||
+        dto.postponeReason !== undefined
+      );
+    if (isPostponeAction) {
+      t.mailSentOnPostpone = false;
+    }
+
     const saved = await this.trainingRepo.save(t);
+
+    // ✅ If training is marked as postponed, notify users once with reason + updated schedule
+    // Do not fail the API call if email fails.
+    if (saved.status === 'POSTPONED' && !saved.mailSentOnPostpone) {
+      await this.sendPostponedMails(saved, { date: prevDate, time: prevTime }).catch((e) => {
+        // eslint-disable-next-line no-console
+        console.error('sendPostponedMails failed:', e);
+      });
+    }
+
     return this.toUi(saved);
+  }
+
+  private async sendPostponedMails(training: Training, previous?: { date?: string; time?: string }) {
+    if (training.mailSentOnPostpone) return;
+
+    // As requested: notify ALL active users.
+    const users = await this.userRepo
+      .createQueryBuilder('u')
+      .where('u.isActive = :active', { active: true })
+      .getMany();
+
+    const recipients = users
+      .filter((u) => !!u.email)
+      .map((u) => ({ email: u.email, name: u.name }));
+    if (recipients.length === 0) return;
+
+    await this.mail.sendMail(
+      recipients,
+      `Training Postponed: ${training.topic}`,
+      this.mail.trainingPostponedHtml(training, previous),
+    );
+
+    training.mailSentOnPostpone = true;
+    await this.trainingRepo.save(training);
   }
 
   /**
@@ -363,6 +423,32 @@ async generateTrainingListExcel(): Promise<ExcelJS.Workbook> {
   const safeJoin = (v?: any) =>
     Array.isArray(v) ? v.filter(Boolean).join(', ') : '';
 
+  const formatTime12 = (input?: string) => {
+    const s = (input ?? '').trim();
+    if (!s) return '';
+    const ampm = s.match(/^([0-9]{1,2}):([0-9]{2})\s*([AaPp][Mm])$/);
+    if (ampm) {
+      const hh = String(Number(ampm[1])).padStart(2, '0');
+      return `${hh}:${ampm[2]} ${ampm[3].toUpperCase()}`;
+    }
+    const m = s.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+    if (!m) return s;
+    let h = Number(m[1]);
+    const min = m[2];
+    const ap = h >= 12 ? 'PM' : 'AM';
+    h = h % 12;
+    if (h === 0) h = 12;
+    return `${String(h).padStart(2, '0')}:${min} ${ap}`;
+  };
+
+  const formatTimeRangeIST = (input?: string) => {
+    const s = (input ?? '').trim();
+    if (!s) return '';
+    const parts = s.split('-').map((p) => p.trim()).filter(Boolean);
+    if (parts.length >= 2) return `${formatTime12(parts[0])} - ${formatTime12(parts[1])} (IST)`;
+    return `${formatTime12(s)} (IST)`;
+  };
+
   trainings.forEach((t) => {
     const attendees = Array.isArray(t.attendees) ? t.attendees : [];
     const attendedCount = attendees.filter((a) => a?.status === 'ATTENDED').length;
@@ -373,7 +459,7 @@ async generateTrainingListExcel(): Promise<ExcelJS.Workbook> {
       topic: t.topic,
       venue: t.venue || '',
       date: t.date,
-      time: t.time,
+      time: formatTimeRangeIST(t.time),
       departments: safeJoin(t.departments),
       skills: safeJoin(t.skills),
       trainer: t.trainer || '',

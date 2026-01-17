@@ -87,4 +87,8 @@ export class Training {
 
   @Column({ type: 'boolean', default: false })
   mailSent1HourBefore: boolean;
+
+  // ✅ Email flag to prevent duplicate postpone notifications
+  @Column({ type: 'boolean', default: false })
+  mailSentOnPostpone: boolean;
 }
