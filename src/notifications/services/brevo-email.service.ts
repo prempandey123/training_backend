@@ -106,8 +106,9 @@ export class BrevoEmailService {
   /**
    * Improved training assignment email (nice looking)
    */
-  trainingCreatedHtml(training: { topic: string; date: string; time: string; trainer?: string | null }) {
+  trainingCreatedHtml(training: { topic: string; venue?: string | null; date: string; time: string; trainer?: string | null }) {
     const topic = this.escapeHtml(training.topic);
+    const venue = training.venue ? this.escapeHtml(training.venue) : '';
     const date = this.escapeHtml(this.formatDate(training.date));
     const time = this.escapeHtml(training.time);
     const trainer = training.trainer ? this.escapeHtml(training.trainer) : '';
@@ -133,6 +134,7 @@ export class BrevoEmailService {
 
               <div style="border:1px solid #eef2f7;border-radius:10px;padding:14px 16px;background:#fafbff;">
                 <p style="margin:0 0 8px 0;"><b>Topic:</b> ${topic}</p>
+                ${venue ? `<p style="margin:0 0 8px 0;"><b>Venue:</b> ${venue}</p>` : ''}
                 <p style="margin:0 0 8px 0;"><b>Date:</b> ${date}</p>
                 <p style="margin:0 0 8px 0;"><b>Time:</b> ${time}</p>
                 ${trainer ? `<p style="margin:0;"><b>Trainer:</b> ${trainer}</p>` : ''}
@@ -161,7 +163,7 @@ export class BrevoEmailService {
 
   reminderHtml(
     title: string,
-    training: { topic: string; date: string; time: string; trainer?: string | null },
+    training: { topic: string; venue?: string | null; date: string; time: string; trainer?: string | null },
     message: string,
   ) {
     const safeTitle = this.escapeHtml(title);
@@ -169,6 +171,7 @@ export class BrevoEmailService {
 
     // Reuse the same card style for reminders too
     const topic = this.escapeHtml(training.topic);
+    const venue = training.venue ? this.escapeHtml(training.venue) : '';
     const date = this.escapeHtml(this.formatDate(training.date));
     const time = this.escapeHtml(training.time);
     const trainer = training.trainer ? this.escapeHtml(training.trainer) : '';
@@ -188,6 +191,7 @@ export class BrevoEmailService {
 
               <div style="border:1px solid #eef2f7;border-radius:10px;padding:14px 16px;background:#fafbff;">
                 <p style="margin:0 0 8px 0;"><b>Topic:</b> ${topic}</p>
+                ${venue ? `<p style="margin:0 0 8px 0;"><b>Venue:</b> ${venue}</p>` : ''}
                 <p style="margin:0 0 8px 0;"><b>Date:</b> ${date}</p>
                 <p style="margin:0 0 8px 0;"><b>Time:</b> ${time}</p>
                 ${trainer ? `<p style="margin:0;"><b>Trainer:</b> ${trainer}</p>` : ''}

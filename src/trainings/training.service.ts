@@ -16,10 +16,11 @@ type CalendarEvent = {
   end?: string;
   extendedProps: {
     department: string;
-    trainer: string;
-    status: string;
-    time: string;
-    skills: string[];
+  trainer: string;
+  status: string;
+  time: string;
+  skills: string[];
+  venue: string;
   };
 };
 
@@ -39,6 +40,7 @@ export class TrainingService {
     const training = this.trainingRepo.create();
 
     training.topic = dto.topic;
+    training.venue = (dto.venue || '').trim() || null;
     training.trainingType = dto.trainingType ?? TrainingType.INTERNAL;
     training.date = dto.trainingDate;
     training.time = dto.trainingTime;
@@ -129,6 +131,7 @@ export class TrainingService {
       'Training Assigned',
       this.mail.trainingCreatedHtml({
         topic: dto.topic,
+        venue: (dto.venue || '').trim() || null,
         date: dto.trainingDate,
         time: dto.trainingTime,
         trainer: dto.trainer ?? null,
@@ -162,20 +165,11 @@ async findAll() {
     const t = await this.trainingRepo.findOne({ where: { id } });
     if (!t) throw new NotFoundException('Training not found');
 
-    /**
-     * Attendance can be marked only for trainings happening today or in the past.
-     * However, for UPCOMING trainings we still allow editing the participant list
-     * as long as the request does not attempt to set attendance status.
-     */
+    // Attendance can be marked only for trainings happening today or in the past.
     if (dto.attendees !== undefined) {
       const today = this.getLocalISODate();
       // Dates are stored as YYYY-MM-DD so lexicographic compare is safe.
-      const isUpcoming = (t.date || '').trim() && t.date > today;
-      const triesToMarkAttendance =
-        Array.isArray(dto.attendees) &&
-        dto.attendees.some((a) => a?.status === 'ATTENDED' || a?.status === 'ABSENT');
-
-      if (isUpcoming && triesToMarkAttendance) {
+      if ((t.date || '').trim() && t.date > today) {
         throw new BadRequestException(
           'Attendance for upcoming trainings is locked. You can mark attendance only on the training day or for past trainings.',
         );
@@ -183,6 +177,7 @@ async findAll() {
     }
 
     if (dto.topic !== undefined) t.topic = dto.topic;
+    if (dto.venue !== undefined) t.venue = (dto.venue || '').trim() || null;
     if (dto.trainingDate !== undefined) t.date = dto.trainingDate;
     if (dto.trainingTime !== undefined) t.time = dto.trainingTime;
     if (dto.departments !== undefined) t.departments = dto.departments;
@@ -230,11 +225,13 @@ async findAll() {
       topic: t.topic,
       // Backward compatibility for components that still read `title`
       title: t.topic,
+      venue: t.venue ?? '',
       date: t.date,
       time: t.time,
       department: dept, // UI shows single department column
       departments: t.departments ?? [],
       trainer: t.trainer ?? '',
+      trainingType: t.trainingType,
       status: t.status,
       skills: t.skills ?? [],
       assignedEmployees: t.assignedEmployees ?? [],
@@ -266,6 +263,7 @@ async findAll() {
         status: t.status,
         time: t.time,
         skills: t.skills ?? [],
+        venue: t.venue ?? '',
       },
     };
   }
@@ -338,11 +336,13 @@ async generateTrainingListExcel(): Promise<ExcelJS.Workbook> {
   sheet.columns = [
     { header: 'ID', key: 'id', width: 8 },
     { header: 'Topic', key: 'topic', width: 32 },
+    { header: 'Venue', key: 'venue', width: 24 },
     { header: 'Date', key: 'date', width: 14 },
     { header: 'Time', key: 'time', width: 16 },
     { header: 'Departments', key: 'departments', width: 28 },
     { header: 'Skills', key: 'skills', width: 28 },
     { header: 'Trainer', key: 'trainer', width: 22 },
+    { header: 'Training Type', key: 'trainingType', width: 18 },
     { header: 'Status', key: 'status', width: 14 },
     { header: 'Participants', key: 'participants', width: 14 },
     { header: 'Attended', key: 'attended', width: 12 },
@@ -371,11 +371,13 @@ async generateTrainingListExcel(): Promise<ExcelJS.Workbook> {
     sheet.addRow({
       id: t.id,
       topic: t.topic,
+      venue: t.venue || '',
       date: t.date,
       time: t.time,
       departments: safeJoin(t.departments),
       skills: safeJoin(t.skills),
       trainer: t.trainer || '',
+      trainingType: (t as any).trainingType || '',
       status: t.status,
       participants: attendees.length || 0,
       attended: attendedCount,

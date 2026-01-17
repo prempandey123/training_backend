@@ -18,6 +18,10 @@ export class Training {
   @Column({ type: 'varchar', length: 255 })
   topic: string;
 
+  // Venue / location of the training session
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  venue?: string | null;
+
 
   @Column({
     type: 'enum',

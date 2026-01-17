@@ -25,6 +25,10 @@ export class UpdateTrainingDto {
 
   @IsOptional()
   @IsString()
+  venue?: string;
+
+  @IsOptional()
+  @IsString()
   trainingDate?: string;
 
   @IsOptional()

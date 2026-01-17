@@ -21,6 +21,10 @@ export class CreateTrainingDto {
   @IsNotEmpty()
   topic: string;
 
+  @IsOptional()
+  @IsString()
+  venue?: string;
+
   // UI sends YYYY-MM-DD
   @IsString()
   @IsNotEmpty()
