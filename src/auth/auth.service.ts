@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class AuthService {
@@ -41,6 +42,16 @@ export class AuthService {
     const user = await this.usersService.findByEmail(email);
 
     if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // user.password is selected explicitly in UsersService.findByEmail
+    if (!user.password) {
+      throw new UnauthorizedException('Password not set for this user');
+    }
+
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
