@@ -175,6 +175,96 @@ export class ReportsController {
   }
 
   // ===============================
+  // ANNEXURE-11 (EXCEL)
+  // ===============================
+  @Get('annexure-11/excel')
+  async downloadAnnexure11Excel(
+    @Query('year') year: string | undefined,
+    @Query('upto') upto: string | undefined,
+    @Res() res: Response,
+  ) {
+    const y = year ? Number(year) : new Date().getFullYear();
+    const workbook = await this.service.generateAnnexure11Excel(
+      Number.isFinite(y as any) ? (y as number) : new Date().getFullYear(),
+      upto,
+    );
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename=annexure-11-${y}.xlsx`);
+    await workbook.xlsx.write(res);
+    res.end();
+  }
+
+  // ===============================
+  // MONTH-WISE (EXCEL)
+  // ===============================
+  @Get('month-wise/excel')
+  async downloadMonthWiseExcel(
+    @Query('year') year: string | undefined,
+    @Res() res: Response,
+  ) {
+    const y = year ? Number(year) : new Date().getFullYear();
+    const workbook = await this.service.generateMonthWiseExcel(
+      Number.isFinite(y as any) ? (y as number) : new Date().getFullYear(),
+    );
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename=month-wise-${y}.xlsx`);
+    await workbook.xlsx.write(res);
+    res.end();
+  }
+
+  // ===============================
+  // ANNEXURE-12 (EXCEL)
+  // ===============================
+  @Get('annexure-12/excel')
+  async downloadAnnexure12Excel(
+    @Query('year') year: string | undefined,
+    @Res() res: Response,
+  ) {
+    const y = year ? Number(year) : new Date().getFullYear();
+    const workbook = await this.service.generateAnnexure12Excel(
+      Number.isFinite(y as any) ? (y as number) : new Date().getFullYear(),
+    );
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename=annexure-12-${y}.xlsx`);
+    await workbook.xlsx.write(res);
+    res.end();
+  }
+
+  // ===============================
+  // TRAINING MASTER RECORD FY (EXCEL)
+  // ===============================
+  @Get('training-master-record/excel')
+  async downloadTrainingMasterRecordExcel(
+    @Query('fy') fy: string | undefined,
+    @Query('start') start: string | undefined,
+    @Query('end') end: string | undefined,
+    @Res() res: Response,
+  ) {
+    const workbook = await this.service.generateTrainingMasterRecordExcel({ fy, start, end });
+    const fileName = fy ? `training-master-record-${fy}.xlsx` : 'training-master-record.xlsx';
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+    await workbook.xlsx.write(res);
+    res.end();
+  }
+
+  // ===============================
   // TNI REQUIREMENTS (EXCEL)
   // ===============================
   @Get('tni-requirements/excel')
