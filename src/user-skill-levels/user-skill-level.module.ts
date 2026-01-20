@@ -3,7 +3,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserSkillLevel } from './user-skill-level.entity';
 import { User } from '../users/users.entity';
 import { Skill } from '../skills/skill.entity';
-import { DesignationSkill } from '../designation-skills/designation-skill.entity';
 import { UserSkillLevelService } from './user-skill-level.service';
 import { UserSkillLevelController } from './user-skill-level.controller';
 
@@ -13,7 +12,6 @@ import { UserSkillLevelController } from './user-skill-level.controller';
       UserSkillLevel,
       User,
       Skill,
-      DesignationSkill,
     ]),
   ],
   controllers: [UserSkillLevelController],

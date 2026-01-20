@@ -15,10 +15,12 @@ export class CreateUserSkillLevelDto {
   @IsInt()
   skillId: number;
 
+  // current level can be omitted for HR flows that only set required skills.
+  @IsOptional()
   @IsInt()
   @Min(0)
   @Max(4)
-  currentLevel: number;
+  currentLevel?: number;
 
   // ✅ User-wise required/target level (optional)
   @IsOptional()

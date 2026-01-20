@@ -1,6 +1,5 @@
 import { Type } from 'class-transformer';
 import {
-  ArrayMinSize,
   IsArray,
   IsInt,
   Max,
@@ -20,7 +19,6 @@ export class RequiredLevelItemDto {
 
 export class BulkSetRequiredLevelsDto {
   @IsArray()
-  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => RequiredLevelItemDto)
   levels: RequiredLevelItemDto[];
