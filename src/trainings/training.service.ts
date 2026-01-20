@@ -5,6 +5,8 @@ import { CreateTrainingDto } from './dto/create-training.dto';
 import { UpdateTrainingDto } from './dto/update-training.dto';
 import { Training, TrainingAttendee } from './training.entity';
 import { TrainingType } from './enums/training-type.enum';
+import { TrainingCategory } from './enums/training-category.enum';
+import { TrainingSessionType } from './enums/training-session-type.enum';
 import * as ExcelJS from 'exceljs';
 import { User } from '../users/users.entity';
 import { BrevoEmailService } from '../notifications/services/brevo-email.service';
@@ -41,7 +43,10 @@ export class TrainingService {
 
     training.topic = dto.topic;
     training.venue = (dto.venue || '').trim() || null;
-    training.trainingType = dto.trainingType ?? TrainingType.INTERNAL;
+    // UI label: Mode -> maps to trainingType. Accept both keys.
+    training.trainingType = (dto.trainingType ?? dto.mode) ?? TrainingType.INTERNAL;
+    training.category = dto.category ?? TrainingCategory.BOTH;
+    training.type = dto.type ?? TrainingSessionType.MANDATORY;
     training.date = dto.trainingDate;
     training.time = dto.trainingTime;
     training.departments = dto.departments ?? [];
@@ -198,6 +203,10 @@ async findAll() {
     if (dto.status !== undefined) t.status = dto.status;
     if (dto.attendees !== undefined) t.attendees = dto.attendees;
     if (dto.postponeReason !== undefined) t.postponeReason = dto.postponeReason;
+    if (dto.trainingType !== undefined || dto.mode !== undefined)
+      t.trainingType = (dto.trainingType ?? dto.mode) as TrainingType;
+    if (dto.category !== undefined) t.category = dto.category;
+    if (dto.type !== undefined) t.type = dto.type;
 
     // If the client is explicitly postponing (or re-postponing) the training,
     // allow a fresh notification by resetting the flag.
@@ -291,7 +300,11 @@ async findAll() {
       department: dept, // UI shows single department column
       departments: t.departments ?? [],
       trainer: t.trainer ?? '',
+      // Backward-compatible field. UI may show this as "Mode".
       trainingType: t.trainingType,
+      mode: t.trainingType,
+      category: t.category ?? TrainingCategory.BOTH,
+      type: t.type ?? TrainingSessionType.MANDATORY,
       status: t.status,
       skills: t.skills ?? [],
       assignedEmployees: t.assignedEmployees ?? [],
@@ -402,7 +415,9 @@ async generateTrainingListExcel(): Promise<ExcelJS.Workbook> {
     { header: 'Departments', key: 'departments', width: 28 },
     { header: 'Skills', key: 'skills', width: 28 },
     { header: 'Trainer', key: 'trainer', width: 22 },
-    { header: 'Training Type', key: 'trainingType', width: 18 },
+    { header: 'Mode', key: 'mode', width: 16 },
+    { header: 'Category', key: 'category', width: 12 },
+    { header: 'Type', key: 'type', width: 12 },
     { header: 'Status', key: 'status', width: 14 },
     { header: 'Participants', key: 'participants', width: 14 },
     { header: 'Attended', key: 'attended', width: 12 },
@@ -463,7 +478,9 @@ async generateTrainingListExcel(): Promise<ExcelJS.Workbook> {
       departments: safeJoin(t.departments),
       skills: safeJoin(t.skills),
       trainer: t.trainer || '',
-      trainingType: (t as any).trainingType || '',
+      mode: (t as any).trainingType || '',
+      category: (t as any).category || '',
+      type: (t as any).type || '',
       status: t.status,
       participants: attendees.length || 0,
       attended: attendedCount,

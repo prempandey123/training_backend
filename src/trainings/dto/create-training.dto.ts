@@ -1,6 +1,8 @@
 import { IsArray, IsEnum, IsIn, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TrainingType } from '../enums/training-type.enum';
+import { TrainingCategory } from '../enums/training-category.enum';
+import { TrainingSessionType } from '../enums/training-session-type.enum';
 
 class AssignedEmployeeDto {
   @IsString()
@@ -62,4 +64,20 @@ export class CreateTrainingDto {
   @IsOptional()
   @IsEnum(TrainingType)
   trainingType?: TrainingType;
+
+  /**
+   * UI label: Mode (Internal/External/Online/...)
+   * Backward compatible alias if frontend sends `mode`.
+   */
+  @IsOptional()
+  @IsEnum(TrainingType)
+  mode?: TrainingType;
+
+  @IsOptional()
+  @IsEnum(TrainingCategory)
+  category?: TrainingCategory;
+
+  @IsOptional()
+  @IsEnum(TrainingSessionType)
+  type?: TrainingSessionType;
 }

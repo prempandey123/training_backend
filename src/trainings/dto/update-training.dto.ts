@@ -1,6 +1,8 @@
 import { IsArray, IsEnum, IsIn, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TrainingType } from '../enums/training-type.enum';
+import { TrainingCategory } from '../enums/training-category.enum';
+import { TrainingSessionType } from '../enums/training-session-type.enum';
 
 class AttendeeDto {
   @IsString()
@@ -66,4 +68,19 @@ export class UpdateTrainingDto {
   @IsOptional()
   @IsEnum(TrainingType)
   trainingType?: TrainingType;
+
+  /**
+   * UI label: Mode (alias for trainingType)
+   */
+  @IsOptional()
+  @IsEnum(TrainingType)
+  mode?: TrainingType;
+
+  @IsOptional()
+  @IsEnum(TrainingCategory)
+  category?: TrainingCategory;
+
+  @IsOptional()
+  @IsEnum(TrainingSessionType)
+  type?: TrainingSessionType;
 }

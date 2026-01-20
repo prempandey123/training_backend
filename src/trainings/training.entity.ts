@@ -1,5 +1,7 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { TrainingType } from './enums/training-type.enum';
+import { TrainingCategory } from './enums/training-category.enum';
+import { TrainingSessionType } from './enums/training-session-type.enum';
 
 export type TrainingStatus = 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'POSTPONED';
 
@@ -30,6 +32,29 @@ export class Training {
     default: TrainingType.INTERNAL,
   })
   trainingType: TrainingType;
+
+  /**
+   * Category of participants the training is meant for.
+   * Worker | Staff | Both
+   */
+  @Column({
+    type: 'enum',
+    enum: TrainingCategory,
+    enumName: 'training_category_enum',
+    default: TrainingCategory.BOTH,
+  })
+  category: TrainingCategory;
+
+  /**
+   * Mandatory | Optional
+   */
+  @Column({
+    type: 'enum',
+    enum: TrainingSessionType,
+    enumName: 'training_session_type_enum',
+    default: TrainingSessionType.MANDATORY,
+  })
+  type: TrainingSessionType;
 
   /**
    * Compatibility alias used by some modules that still refer to `title`.
