@@ -12,11 +12,14 @@ export class AuthService {
 
   async login(email: string, password: string) {
     // TEMP HARD CODE LOGIN (for training/demo)
+    // ⚠️ Disabled automatically in production for security.
     // Frontend placeholder credentials: admin@herosteels.com / admin123
     // Local quick credentials: admin@gmail.com / admin
+    const allowHardcodedAdmin = process.env.NODE_ENV !== 'production';
     const isHardcodedAdmin =
-      (email === 'admin@gmail.com' && password === 'admin') ||
-      (email === 'admin@herosteels.com' && password === 'admin123');
+      allowHardcodedAdmin &&
+      ((email === 'admin@gmail.com' && password === 'admin') ||
+        (email === 'admin@herosteels.com' && password === 'admin123'));
 
     if (isHardcodedAdmin) {
       // For the admin to use any ".../me" endpoints, the JWT must contain a user id (sub).

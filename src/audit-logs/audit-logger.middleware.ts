@@ -42,7 +42,12 @@ export class AuditLoggerMiddleware implements NestMiddleware {
         let actor: User | undefined;
         if (token) {
           try {
-            const secret = this.config.get<string>('JWT_SECRET') ?? 'TEMP_JWT_SECRET_123';
+            const secret = this.config.get<string>('JWT_SECRET');
+            if (!secret) {
+              // If secret is missing, don't attempt to verify tokens for auditing.
+              // (Prevents inconsistent verification with hardcoded fallback secrets.)
+              throw new Error('JWT_SECRET missing');
+            }
             const payload: any = jwt.verify(token, secret);
             const userId = Number(payload?.sub);
             if (userId) {
@@ -124,10 +129,25 @@ export class AuditLoggerMiddleware implements NestMiddleware {
     const ok = statusCode >= 200 && statusCode < 400;
     if (req.path?.includes('/auth/login')) {
       const email = (req.body as any)?.email;
-      return ok ? `Login success${email ? `: ${email}` : ''}` : `Login failed${email ? `: ${email}` : ''}`;
+      const safeEmail = email ? this.maskEmail(String(email)) : '';
+      return ok
+        ? `Login success${safeEmail ? `: ${safeEmail}` : ''}`
+        : `Login failed${safeEmail ? `: ${safeEmail}` : ''}`;
     }
     return ok
       ? `${req.method} ${name} succeeded`
       : `${req.method} ${name} failed (status ${statusCode})`;
+  }
+
+  private maskEmail(email: string): string {
+    const at = email.indexOf('@');
+    if (at <= 1) return '***@***';
+    const name = email.slice(0, at);
+    const domain = email.slice(at + 1);
+    const maskedName = `${name[0]}***${name[name.length - 1]}`;
+    const maskedDomain = domain.includes('.')
+      ? `***.${domain.split('.').pop()}`
+      : '***';
+    return `${maskedName}@${maskedDomain}`;
   }
 }

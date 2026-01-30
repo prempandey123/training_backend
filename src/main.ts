@@ -14,7 +14,13 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  const isProd = process.env.NODE_ENV === 'production';
+
   if (!process.env.JWT_SECRET) {
+    if (isProd) {
+      // Fail fast in production so we don't run with an insecure fallback secret.
+      throw new Error('JWT_SECRET is required in production');
+    }
     console.warn(
       '⚠️  JWT_SECRET is not set. Using the default dev secret. Set JWT_SECRET in your .env for security.',
     );
@@ -35,12 +41,16 @@ async function bootstrap() {
   );
 
   // 🔹 Enable CORS (frontend integration ready)
+  // Use CORS_ORIGIN as a comma-separated allowlist; fall back to permissive in dev.
+  const corsOrigin = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim()).filter(Boolean)
+    : true;
   app.enableCors({
-    origin: true,
+    origin: corsOrigin,
     credentials: true,
   });
 
-  // 🔹 Swagger Configuration
+  // 🔹 Swagger Configuration (dev-only by default)
   const config = new DocumentBuilder()
     .setTitle('Training & Competency Matrix API')
     .setDescription('Backend APIs for Training & Competency Management System')
@@ -56,12 +66,17 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  const swaggerEnabled = !isProd || process.env.SWAGGER_ENABLED === 'true';
+  if (swaggerEnabled) {
+    SwaggerModule.setup('api', app, document);
+  }
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
 
   console.log(`🚀 Server running on port ${port}`);
-  console.log(`📘 Swagger available at http://localhost:${port}/api`);
+  if (swaggerEnabled) {
+    console.log(`📘 Swagger available at http://localhost:${port}/api`);
+  }
 }
 bootstrap();
