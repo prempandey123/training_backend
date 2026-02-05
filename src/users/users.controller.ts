@@ -11,8 +11,12 @@ import {
   Query,
   Req,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -30,6 +34,28 @@ export class UsersController {
   @Roles('ADMIN', 'HRD', 'HR')
   create(@Body() dto: CreateUserDto) {
     return this.usersService.create(dto);
+  }
+
+  // 📥 BULK UPLOAD USERS FROM EXCEL (.xlsx)
+  // POST /users/bulk-upload (multipart/form-data, field name: file)
+  @Post('bulk-upload')
+  @Roles('ADMIN', 'HRD', 'HR')
+  @UseInterceptors(FileInterceptor('file'))
+  async bulkUpload(
+    @Req() req: any,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    if (!file?.buffer || !file?.originalname) {
+      throw new BadRequestException('Excel file is required (field: file)');
+    }
+
+    // Basic guard: accept only xlsx/xlsm
+    const name = String(file.originalname || '').toLowerCase();
+    if (!name.endsWith('.xlsx') && !name.endsWith('.xlsm')) {
+      throw new BadRequestException('Only .xlsx/.xlsm files are supported');
+    }
+
+    return this.usersService.bulkCreateFromExcel(req.user, file.buffer);
   }
 
   // 🔹 LIST ALL USERS
