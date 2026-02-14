@@ -125,4 +125,16 @@ export class UserSkillLevelController {
     }
     return this.service.upsertForUser(userId, skillId, body.currentLevel);
   }
+
+  // ✅ ADMIN: UPDATE ANY USER'S CURRENT LEVEL BY EMPLOYEE ID
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Put('employee/:employeeId/:skillId')
+  @Roles('ADMIN')
+  upsertForEmployeeId(
+    @Param('employeeId') employeeId: string,
+    @Param('skillId', ParseIntPipe) skillId: number,
+    @Body() body: { currentLevel: number },
+  ) {
+    return this.service.upsertForEmployeeId(employeeId, skillId, body.currentLevel);
+  }
 }

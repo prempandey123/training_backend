@@ -148,6 +148,22 @@ export class UserSkillLevelService {
     return this.uslRepo.save(userSkill);
   }
 
+  // ✅ ADMIN: UPSERT CURRENT LEVEL BY EMPLOYEE ID
+  async upsertForEmployeeId(employeeId: string, skillId: number, currentLevel: number) {
+    const empId = String(employeeId ?? '').trim();
+    if (!empId) {
+      throw new BadRequestException('employeeId is required');
+    }
+
+    const user = await this.userRepo.findOne({
+      where: { employeeId: empId },
+      relations: ['designation'],
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    return this.upsertForUser(user.id, skillId, currentLevel);
+  }
+
   // GET ALL SKILLS FOR USER
   async findByUser(userId: number) {
     return this.uslRepo.find({
