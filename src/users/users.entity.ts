@@ -27,6 +27,14 @@ export class User {
   @Column()
   mobile: string;
 
+  // 🎓 Qualification (optional)
+  @Column({ nullable: true })
+  qualification?: string;
+
+  // 🧰 Experience (optional)
+  @Column({ nullable: true })
+  experience?: string;
+
   // 🔐 hashed password (not selected by default)
   @Column({ nullable: true, select: false })
   password?: string;

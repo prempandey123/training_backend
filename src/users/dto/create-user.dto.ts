@@ -25,6 +25,14 @@ export class CreateUserDto {
   @IsNotEmpty()
   mobile: string;
 
+  @IsOptional()
+  @IsString()
+  qualification?: string;
+
+  @IsOptional()
+  @IsString()
+  experience?: string;
+
   // 🔐 password (required on create)
   @IsString()
   @MinLength(6)

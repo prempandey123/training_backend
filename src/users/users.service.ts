@@ -194,6 +194,8 @@ export class UsersService {
       email,
       employeeId,
       mobile: dto.mobile,
+      qualification: dto.qualification,
+      experience: dto.experience,
       password: hashedPassword,
       role: dto.role,
       employeeType: dto.employeeType,
@@ -202,7 +204,7 @@ export class UsersService {
       dateOfJoining: new Date(dto.dateOfJoining),
       isActive: dto.isActive ?? true,
       biometricLinked: dto.biometricLinked ?? false,
-    });
+    } as any);
 
     return this.userRepo.save(user);
   }
@@ -442,6 +444,9 @@ export class UsersService {
           false,
         );
 
+        const qualification = this.getCellString(row, headerMap['qualification']);
+        const experience = this.getCellString(row, headerMap['experience']);
+
         const doj = this.getCellDate(row, headerMap['dateofjoining']);
 
         // Department / Designation (id or name)
@@ -477,6 +482,8 @@ export class UsersService {
           email,
           employeeId,
           mobile,
+          qualification: qualification || null,
+          experience: experience || null,
           password: hashedPassword,
           role: roleVal as any,
           employeeType: empTypeVal as any,
@@ -485,7 +492,7 @@ export class UsersService {
           dateOfJoining: doj ?? new Date(),
           isActive,
           biometricLinked,
-        });
+    } as any);
 
         await this.userRepo.save(user);
 
