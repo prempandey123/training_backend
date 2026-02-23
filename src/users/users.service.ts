@@ -274,6 +274,11 @@ export class UsersService {
     if (dto.name) user.name = dto.name;
     if (dto.mobile) user.mobile = dto.mobile;
 
+    // ✅ Qualification / Experience
+    // allow clearing values by checking undefined (not truthy)
+    if (dto.qualification !== undefined) user.qualification = dto.qualification as any;
+    if (dto.experience !== undefined) user.experience = dto.experience as any;
+
     // Worker / Staff
     if (dto.employeeType) user.employeeType = dto.employeeType;
 
