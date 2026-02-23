@@ -293,6 +293,12 @@ async findAll() {
   private normalizeAttendeesForSave(attendees: any[], trainingTime: string) {
     if (!Array.isArray(attendees)) return attendees as any;
     const range = this.parseTimeRange(trainingTime);
+    const isHHMM = (s: string) => /^\d{1,2}:\d{2}$/.test(s);
+    const norm = (s: string) => {
+      const t = String(s || '').trim();
+      if (!isHHMM(t)) return '';
+      return t.padStart(5, '0');
+    };
     return attendees.map((a) => {
       const status = String(a?.status ?? 'ABSENT').toUpperCase() === 'ATTENDED' ? 'ATTENDED' : 'ABSENT';
       const base: any = {
@@ -303,8 +309,8 @@ async findAll() {
       };
 
       if (status === 'ATTENDED') {
-        const inTime = String(a?.inTime ?? '').trim();
-        const outTime = String(a?.outTime ?? '').trim();
+        const inTime = norm(a?.inTime);
+        const outTime = norm(a?.outTime);
         base.inTime = inTime || range.start || undefined;
         base.outTime = outTime || range.end || undefined;
       }
