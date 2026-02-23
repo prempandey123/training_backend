@@ -65,7 +65,17 @@ export class TrainingService {
     }));
     training.attendees = attendees;
 
-    training.status = dto.status ?? 'PENDING';
+    if (dto.status === 'CANCELLED') {
+      const remark = (dto.cancelRemark ?? '').trim();
+      if (!remark) {
+        throw new BadRequestException('Cancel remark is required');
+      }
+      training.status = 'CANCELLED';
+      training.cancelRemark = remark;
+    } else {
+      training.status = dto.status ?? 'PENDING';
+      training.cancelRemark = (dto.cancelRemark ?? '').trim() || null;
+    }
     training.trainer = dto.trainer ?? undefined;
 
     const saved = await this.trainingRepo.save(training);
@@ -178,12 +188,22 @@ async findAll() {
     // NOTE: The training edit screen also sends an `attendees` array to manage the participant roster
     // (employee list) even for upcoming trainings. We only lock updates that actually include
     // attendance status changes.
+    // IMPORTANT:
+    // The edit-training UI may send an attendees array for roster management.
+    // We should only lock when the request is actually *marking attendance*, i.e.
+    // setting a status to ATTENDED/ABSENT. Merely having a `status` key (undefined/null)
+    // should not trigger the lock.
     const isAttendanceMarkingRequest =
       dto.attendees !== undefined &&
       Array.isArray(dto.attendees) &&
-      dto.attendees.some((a: any) => a && typeof a === 'object' && 'status' in a);
+      dto.attendees.some((a: any) => {
+        const s = String(a?.status ?? '').toUpperCase().trim();
+        return s === 'ATTENDED' || s === 'ABSENT';
+      });
 
-    if (isAttendanceMarkingRequest) {
+    // Allow cancelling/updating status even for upcoming trainings.
+    // Only attendance marking is locked for future trainings.
+    if (isAttendanceMarkingRequest && dto.status !== 'CANCELLED') {
       const today = this.getLocalISODate();
       // Dates are stored as YYYY-MM-DD so lexicographic compare is safe.
       if ((t.date || '').trim() && t.date > today) {
@@ -200,9 +220,33 @@ async findAll() {
     if (dto.departments !== undefined) t.departments = dto.departments;
     if (dto.skills !== undefined) t.skills = dto.skills;
     if (dto.trainer !== undefined) t.trainer = dto.trainer;
-    if (dto.status !== undefined) t.status = dto.status;
-    if (dto.attendees !== undefined) t.attendees = dto.attendees;
-    if (dto.postponeReason !== undefined) t.postponeReason = dto.postponeReason;
+    // Cancel requires a remark.
+    if (dto.status === 'CANCELLED') {
+      const remark = (dto.cancelRemark ?? '').trim();
+      if (!remark) {
+        throw new BadRequestException('Cancel remark is required');
+      }
+      t.status = 'CANCELLED';
+      // Keep a history of cancellation remarks (so postponed->cancelled shows both clearly).
+      t.cancelRemark = this.appendRemarkLog(t.cancelRemark, remark);
+    } else if (dto.status !== undefined) {
+      t.status = dto.status;
+    }
+    if (dto.attendees !== undefined) {
+      // When marking attendance, store the timing as well (HH:mm).
+      // If timing is not provided for an ATTENDED attendee, default it to scheduled training time.
+      t.attendees = this.normalizeAttendeesForSave(dto.attendees as any[], t.time);
+    }
+    // Keep a history of postpone reasons (multiple postpones should be visible).
+    if (dto.postponeReason !== undefined) {
+      const reason = (dto.postponeReason ?? '').trim();
+      // If empty string was sent, allow clearing.
+      t.postponeReason = reason ? this.appendRemarkLog(t.postponeReason, reason) : null;
+    }
+    if (dto.cancelRemark !== undefined && dto.status !== 'CANCELLED') {
+      // Allow updating remark even if status isn't cancelled, but don't force.
+      t.cancelRemark = (dto.cancelRemark || '').trim() || null;
+    }
     if (dto.trainingType !== undefined || dto.mode !== undefined)
       t.trainingType = (dto.trainingType ?? dto.mode) as TrainingType;
     if (dto.category !== undefined) t.category = dto.category;
@@ -222,6 +266,16 @@ async findAll() {
       t.mailSentOnPostpone = false;
     }
 
+    // If any attendee is marked ATTENDED, the training is considered COMPLETED.
+    // (Unless it is explicitly cancelled/postponed.)
+    const hasAnyAttended = Array.isArray(t.attendees)
+      ? t.attendees.some((a: any) => String(a?.status ?? '').toUpperCase() === 'ATTENDED')
+      : false;
+
+    if (t.status !== 'CANCELLED' && t.status !== 'POSTPONED' && hasAnyAttended) {
+      t.status = 'COMPLETED';
+    }
+
     const saved = await this.trainingRepo.save(t);
 
     // ✅ If training is marked as postponed, notify users once with reason + updated schedule
@@ -234,6 +288,79 @@ async findAll() {
     }
 
     return this.toUi(saved);
+  }
+
+  private normalizeAttendeesForSave(attendees: any[], trainingTime: string) {
+    if (!Array.isArray(attendees)) return attendees as any;
+    const range = this.parseTimeRange(trainingTime);
+    return attendees.map((a) => {
+      const status = String(a?.status ?? 'ABSENT').toUpperCase() === 'ATTENDED' ? 'ATTENDED' : 'ABSENT';
+      const base: any = {
+        empId: String(a?.empId ?? '').trim(),
+        name: String(a?.name ?? '').trim(),
+        dept: a?.dept ?? undefined,
+        status,
+      };
+
+      if (status === 'ATTENDED') {
+        const inTime = String(a?.inTime ?? '').trim();
+        const outTime = String(a?.outTime ?? '').trim();
+        base.inTime = inTime || range.start || undefined;
+        base.outTime = outTime || range.end || undefined;
+      }
+
+      // If absent, don't store timing.
+      return base;
+    });
+  }
+
+  private parseTimeRange(time: string): { start: string | null; end: string | null } {
+    // Expected formats from UI:
+    // "10:00 - 12:00" or "10:00-12:00" (HH:mm)
+    const raw = String(time || '').trim();
+    if (!raw) return { start: null, end: null };
+    const parts = raw.split('-').map((p) => p.trim());
+    if (parts.length < 2) return { start: null, end: null };
+    const start = parts[0];
+    const end = parts[1];
+    const isHHMM = (s: string) => /^\d{1,2}:\d{2}$/.test(s);
+    return {
+      start: isHHMM(start) ? start.padStart(5, '0') : null,
+      end: isHHMM(end) ? end.padStart(5, '0') : null,
+    };
+  }
+
+  /**
+   * Append a remark to an existing log while keeping older remarks.
+   * Stored as a newline-separated list with a timestamp prefix.
+   * This avoids schema changes and keeps backward compatibility.
+   */
+  private appendRemarkLog(existing: string | null | undefined, next: string) {
+    const cleanExisting = (existing ?? '').trim();
+    const cleanNext = (next ?? '').trim();
+    if (!cleanNext) return cleanExisting || null;
+
+    const ts = this.formatLocalTimestamp(new Date());
+    const line = `[${ts}] ${cleanNext}`;
+
+    if (!cleanExisting) return line;
+
+    // Avoid duplicating the exact same last line.
+    const parts = cleanExisting.split('\n').map((s) => s.trim()).filter(Boolean);
+    const last = parts.length ? parts[parts.length - 1] : '';
+    if (last === line) return cleanExisting;
+
+    return `${cleanExisting}\n${line}`;
+  }
+
+  private formatLocalTimestamp(d: Date) {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    const mm = pad(d.getMonth() + 1);
+    const dd = pad(d.getDate());
+    const hh = pad(d.getHours());
+    const mi = pad(d.getMinutes());
+    return `${yyyy}-${mm}-${dd} ${hh}:${mi}`;
   }
 
   private async sendPostponedMails(training: Training, previous?: { date?: string; time?: string }) {
@@ -289,6 +416,8 @@ async findAll() {
 
     const cal = this.toCalendarEvent(t);
 
+    const effectiveStatus = this.computeEffectiveStatus(t);
+
     return {
       id: t.id,
       topic: t.topic,
@@ -305,11 +434,12 @@ async findAll() {
       mode: t.trainingType,
       category: t.category ?? TrainingCategory.BOTH,
       type: t.type ?? TrainingSessionType.MANDATORY,
-      status: t.status,
+      status: effectiveStatus,
       skills: t.skills ?? [],
       assignedEmployees: t.assignedEmployees ?? [],
       attendees: t.attendees ?? [],
       postponeReason: t.postponeReason ?? null,
+      cancelRemark: t.cancelRemark ?? null,
       // Calendar-friendly projection (non-breaking additive fields)
       start: cal.start,
       end: cal.end,
@@ -325,6 +455,8 @@ async findAll() {
 
     const { start, end } = this.combineDateAndTimeRange(t.date, t.time);
 
+    const effectiveStatus = this.computeEffectiveStatus(t);
+
     return {
       id: t.id,
       title: t.topic,
@@ -333,12 +465,68 @@ async findAll() {
       extendedProps: {
         department: dept,
         trainer: t.trainer ?? '',
-        status: t.status,
+        status: effectiveStatus,
         time: t.time,
         skills: t.skills ?? [],
         venue: t.venue ?? '',
       },
     };
+  }
+
+  /**
+   * Business rules for Training status:
+   * - CANCELLED: explicit cancel action (remark required)
+   * - POSTPONED: explicit postpone action
+   * - COMPLETED: if any attendee is marked ATTENDED
+   * - ACTIVE: when current time is within scheduled start/end time window
+   * - PENDING: everything else (including past trainings with no attendance)
+   */
+  private computeEffectiveStatus(t: Training): Training['status'] {
+    const base = String(t.status || '').toUpperCase();
+    if (base === 'CANCELLED') return 'CANCELLED' as any;
+    if (base === 'POSTPONED') return 'POSTPONED' as any;
+
+    const attendees = Array.isArray(t.attendees) ? t.attendees : [];
+    const hasAnyAttended = attendees.some(
+      (a: any) => String(a?.status ?? '').toUpperCase() === 'ATTENDED',
+    );
+    if (hasAnyAttended) return 'COMPLETED' as any;
+
+    // ACTIVE only during the scheduled time window.
+    const now = new Date();
+    const window = this.getStartEndDateTimes(t.date, t.time);
+    if (window?.start && window?.end) {
+      if (now >= window.start && now <= window.end) return 'ACTIVE' as any;
+      return 'PENDING' as any;
+    }
+    // If time parsing fails, fall back to date-only: today's trainings are ACTIVE.
+    const today = this.getLocalISODate();
+    if ((t.date || '').trim() && t.date === today) return 'ACTIVE' as any;
+    return 'PENDING' as any;
+  }
+
+  private getStartEndDateTimes(date: string, timeRange: string): { start: Date; end: Date } | null {
+    const safeDate = (date || '').trim();
+    const safeTime = (timeRange || '').trim();
+    if (!safeDate || !safeTime) return null;
+
+    const parts = safeTime.split('-').map((p) => p.trim()).filter(Boolean);
+    if (parts.length < 2) return null;
+
+    const toDate = (d: string, hhmm: string): Date | null => {
+      const m = hhmm.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+      if (!m) return null;
+      const [y, mo, da] = d.split('-').map((x) => parseInt(x, 10));
+      if (!y || !mo || !da) return null;
+      const h = parseInt(m[1], 10);
+      const mi = parseInt(m[2], 10);
+      return new Date(y, mo - 1, da, h, mi, 0, 0);
+    };
+
+    const start = toDate(safeDate, parts[0]);
+    const end = toDate(safeDate, parts[1]);
+    if (!start || !end) return null;
+    return { start, end };
   }
 
   /**

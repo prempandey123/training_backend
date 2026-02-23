@@ -3,13 +3,20 @@ import { TrainingType } from './enums/training-type.enum';
 import { TrainingCategory } from './enums/training-category.enum';
 import { TrainingSessionType } from './enums/training-session-type.enum';
 
-export type TrainingStatus = 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'POSTPONED';
+export type TrainingStatus = 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'POSTPONED' | 'CANCELLED';
 
 export interface TrainingAttendee {
   empId: string;
   name: string;
   dept?: string;
   status?: 'ATTENDED' | 'ABSENT';
+
+  /**
+   * Attendance timing (HH:mm).
+   * When marked present in Attendance screen, defaults to the scheduled training time range.
+   */
+  inTime?: string;
+  outTime?: string;
 }
 
 @Entity({ name: 'trainings' })
@@ -96,6 +103,10 @@ export class Training {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   postponeReason?: string | null;
+
+  // Cancel remark is mandatory when status is CANCELLED (enforced in service)
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  cancelRemark?: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

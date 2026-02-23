@@ -18,6 +18,15 @@ class AttendeeDto {
   @IsOptional()
   @IsIn(['ATTENDED', 'ABSENT'])
   status?: 'ATTENDED' | 'ABSENT';
+
+  // Attendance timing (HH:mm). Stored inside attendees JSON.
+  @IsOptional()
+  @IsString()
+  inTime?: string;
+
+  @IsOptional()
+  @IsString()
+  outTime?: string;
 }
 
 export class UpdateTrainingDto {
@@ -52,8 +61,13 @@ export class UpdateTrainingDto {
   trainer?: string;
 
   @IsOptional()
-  @IsIn(['PENDING', 'ACTIVE', 'COMPLETED', 'POSTPONED'])
-  status?: 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'POSTPONED';
+  @IsIn(['PENDING', 'ACTIVE', 'COMPLETED', 'POSTPONED', 'CANCELLED'])
+  status?: 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'POSTPONED' | 'CANCELLED';
+
+  // Required only when status is CANCELLED (validated in service)
+  @IsOptional()
+  @IsString()
+  cancelRemark?: string;
 
   @IsOptional()
   @IsArray()

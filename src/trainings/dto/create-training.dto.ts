@@ -54,8 +54,13 @@ export class CreateTrainingDto {
   assignedEmployees?: AssignedEmployeeDto[];
 
   @IsOptional()
-  @IsIn(['PENDING', 'ACTIVE', 'COMPLETED', 'POSTPONED'])
-  status?: 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'POSTPONED';
+  @IsIn(['PENDING', 'ACTIVE', 'COMPLETED', 'POSTPONED', 'CANCELLED'])
+  status?: 'PENDING' | 'ACTIVE' | 'COMPLETED' | 'POSTPONED' | 'CANCELLED';
+
+  // Required only when status is CANCELLED (validated in service)
+  @IsOptional()
+  @IsString()
+  cancelRemark?: string;
 
   @IsOptional()
   @IsString()

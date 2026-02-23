@@ -22,14 +22,14 @@ export class DesignationSkillController {
 
   // MAP SKILL TO DESIGNATION
   @Post()
-  @Roles('ADMIN', 'HOD')
+  @Roles('ADMIN', 'HRD', 'HR', 'HOD')
   create(@CurrentUser() user: any, @Body() dto: CreateDesignationSkillDto) {
     return this.service.create(user, dto);
   }
 
   // GET SKILLS FOR A DESIGNATION
   @Get('designation/:designationId')
-  @Roles('ADMIN', 'HOD')
+  @Roles('ADMIN', 'HRD', 'HR', 'HOD')
   findByDesignation(
     @CurrentUser() user: any,
     @Param('designationId', ParseIntPipe) designationId: number,
@@ -39,7 +39,7 @@ export class DesignationSkillController {
 
   // REMOVE SKILL FROM DESIGNATION
   @Delete(':id')
-  @Roles('ADMIN', 'HOD')
+  @Roles('ADMIN', 'HRD', 'HR', 'HOD')
   remove(@CurrentUser() user: any, @Param('id', ParseIntPipe) id: number) {
     return this.service.remove(user, id);
   }
