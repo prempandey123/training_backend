@@ -139,12 +139,18 @@ export class SkillMatrixService {
 
     // Canonical skill list (union across shown users)
     const skillMap = new Map<number, { id: number; name: string }>();
+    // Quick lookup: which skills are mapped to which designation
+    const designationToSkillIds = new Map<number, Set<number>>();
     for (const ds of designationSkills) {
       // If the related Skill (or Designation) is soft-deleted, relation may be null.
       // Skip it so matrices don't crash / show deleted skills.
       if (!ds.skill || !ds.designation) continue;
       const skillId = ds.skill.id;
       skillMap.set(skillId, { id: skillId, name: ds.skill.name });
+
+      const did = ds.designation.id;
+      if (!designationToSkillIds.has(did)) designationToSkillIds.set(did, new Set());
+      designationToSkillIds.get(did)!.add(skillId);
     }
 
     const skills = Array.from(skillMap.values()).sort((a, b) =>
@@ -173,23 +179,48 @@ export class SkillMatrixService {
     const employees = users.map((u) => {
       const designationId = u.designation?.id;
 
+      // Only skills mapped to the user's designation should be treated as "assigned".
+      // If a skill is not assigned, UI must show blank and it must NOT be counted
+      // in completion %.
+      const assignedSkillIds = designationId
+        ? designationToSkillIds.get(designationId) ?? new Set<number>()
+        : new Set<number>();
+
       let totalReq = 0;
       let totalCur = 0;
 
       const cells = skills.map((s) => {
-        // ✅ Required level is user-wise (set by HR). If missing, treat as N/A.
-        const required = 4;
+        const key = `${u.id}:${s.id}`;
 
-        const current = currentMap.get(`${u.id}:${s.id}`) ?? 0;
+        // ❌ Not assigned to this user (not mapped to their designation)
+        if (!assignedSkillIds.has(s.id)) {
+          return {
+            skillId: s.id,
+            assigned: false,
+            requiredLevel: null,
+            currentLevel: null,
+            gap: null,
+          };
+        }
 
-        totalReq += required;
+        // ✅ Assigned skill
+        // Required level is user-wise (set by HR). If missing, default to 4 (previous behavior)
+        // so the matrix still produces a percentage.
+        const required = requiredUserMap.get(key);
+        const requiredLevel = required == null ? 4 : required;
+
+        // If a current level isn't present yet, treat as 0 for calculations.
+        const current = currentMap.get(key) ?? 0;
+
+        totalReq += requiredLevel;
         totalCur += current;
 
         return {
           skillId: s.id,
-          requiredLevel: required,
+          assigned: true,
+          requiredLevel,
           currentLevel: current,
-          gap: required == null ? null : required - current,
+          gap: requiredLevel == null ? null : requiredLevel - current,
         };
       });
 
