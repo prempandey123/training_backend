@@ -21,6 +21,7 @@ import { AuditLoggerMiddleware } from './audit-logs/audit-logger.middleware';
 import { ScheduleModule } from '@nestjs/schedule';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AnnualTrainingCalendarModule } from './annual-training-calendar/annual-training-calendar.module';
+import { QuizModule } from './quizzes/quiz.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { AnnualTrainingCalendarModule } from './annual-training-calendar/annual-
 
     // Uploadable Annual Training Calendar (PDF-format rows)
     AnnualTrainingCalendarModule,
+    QuizModule,
 
     AuditLogsModule,
   ],
